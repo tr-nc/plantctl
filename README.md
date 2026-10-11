@@ -37,6 +37,7 @@ Coordinator label details (provided by the user):
 
 - Product name: **Zigbee 3.0 USB Dongle Plus**.
 - Model: **E** (`ZBDongle-E`).
+- Purchase price: **CNY 94** (provided by the user).
 - Rated input: **5 V DC, 100 mA** (label rating, not measured consumption).
 - Working temperature: **−10 °C to +40 °C**.
 - Enclosure: **aluminum alloy**, dimensions **75 × 25.5 × 13.5 mm**.
@@ -47,6 +48,7 @@ Plug label details (provided by the user):
 
 - Manufacturer: **文光汇**.
 - Product model: **WHDZ04**.
+- Purchase price: **CNY 35** (provided by the user).
 - Supported platform: **Tuya (涂鸦)**; not necessarily manufactured by Tuya.
 - Network: **Zigbee**, consistent with the verified pairing.
 - Stated rated current: **10 A** (current rating, not power or a verified motor-load rating).
