@@ -66,7 +66,19 @@ The author's update log notes a thicker HEX pattern for nozzles larger than
 0.4mm (2023-08-04). Confirm the shop's nozzle size before choosing the file.
 Optional printer V-slot mounting versions were added on 2023-08-05 and modified
 for V-slot/T-slot on 2023-08-13; those mounting options are not required for our
-standalone enclosure. The exact base/top filenames remain to be selected.
+standalone enclosure.
+
+### Selected model files
+
+The two user-downloaded STL files are stored in this repository, unchanged:
+
+- [Standard HEX base](../models/zero3-case/OrangePiZero3_Base_StandardHex.stl)
+- [Standard HEX top with external antenna retention](../models/zero3-case/OrangePiZero3_Top_StandardHex_ExternalAntenna.stl)
+
+Print one of each using PETG / FDM. Source: the Printables model linked above,
+by **TheParanoidEngineer**. These are third-party designs, not authored by this
+project. The original model's license has not yet been verified; do not assume
+commercial printing or redistribution permissions from their inclusion here.
 
 ## Selected storage
 
