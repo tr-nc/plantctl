@@ -14,6 +14,60 @@ planned. The board has not arrived, so hardware compatibility remains untested.
 - Purchase price: **CNY 159**, as reported by the user.
 - Delivery and hardware validation: pending.
 
+## Selected enclosure
+
+User-selected 3D-print model: [Orange Pi Zero 3 Case — Printables #542569](https://www.printables.com/model/542569-orange-pi-zero-3-case).
+
+Selected material/process: **PETG / FDM** (fused deposition modeling). Printing
+and physical fit have not yet been verified. Before printing, check the chosen
+file variant, Wi-Fi antenna placement, USB access for the SONOFF dongle extension
+cable, and clearance for any heatsink or expansion board.
+
+### Assembly and required hardware
+
+From the author's description supplied by the user:
+
+- Print **one base and one chosen top cover**, not every cover variant.
+- External-antenna covers route the antenna wire through the slot above the SD
+  card and hold the antenna in the retention slots.
+- Required fasteners: **4 × M3 × 20mm socket-head cap screws** and **4 × M3 nuts**.
+
+Purchasing guidance:
+
+- Search Taobao for **`M3×20 内六角圆柱头螺丝 304 DIN912`** (socket-head cap screw,
+  commonly sold as DIN 912 / ISO 4762). Choose M3 thread diameter and 20mm length;
+  length is measured from under the head, not including the head.
+- Search for **`M3 六角螺母 304 普通`**. Use ordinary hex nuts, not flange, lock,
+  square, or heat-set insert nuts: those may not fit the modeled recesses.
+- 304 stainless steel is a practical choice; the author does not require a
+  specific fastener material. Buy at least four of each (a ten-piece pack leaves
+  spares) and confirm whether the print shop can supply matching fasteners.
+- Standard M3 socket-head cap screws normally use a **2.5mm hex key**; confirm with
+  the seller and buy one if needed.
+- Assemble gently. If recesses are tight or holes obstructed, check print quality
+  rather than forcing hardware or overtightening against the PCB/PETG.
+
+### Author's print settings
+
+These are the author's recommendations, transcribed from the user-supplied
+Printables description, not a print profile validated by this project:
+
+- Layer height: **0.2mm**.
+- Wall thickness: **at least 1mm**.
+- Top/bottom thickness: **at least 1mm**.
+- Infill: **100% recommended**.
+- Enable **Avoid Crossing Perimeters / Combing**, as appropriate to the slicer,
+  to reduce stringing in the hex pattern.
+- Supports: recommended **only for bolt/nut recess holes**.
+- Adhesion: use a little glue stick if adhesion is poor; the print shop should
+  choose a PETG-compatible build surface and release method.
+
+The author's update log notes a thicker HEX pattern for nozzles larger than
+0.4mm (2023-08-04). Confirm the shop's nozzle size before choosing the file.
+Optional printer V-slot mounting versions were added on 2023-08-05 and modified
+for V-slot/T-slot on 2023-08-13; those mounting options are not required for our
+standalone enclosure. The exact base/top filenames remain to be selected.
+
 ## Selected storage
 
 User-selected card: **SanDisk (闪迪) Extreme 64GB microSDXC UHS-I**, marked
