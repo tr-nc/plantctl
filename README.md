@@ -163,9 +163,10 @@ behavior, and load-safety validation remain outstanding.
 
 ## Design references
 
-Local setup and purchasing notes:
+Documentation is maintained in this repository:
 
-- [Raspberry Pi Zigbee guide](../config-guides/raspberry-pi-zigbee.md)
-- [Zigbee plug research](../config-guides/raspberry-pi-zigbee-plug-research.md)
+- [Zero 3 storage and OS choices](docs/zero3-storage-and-os.md)
+- [Original Raspberry Pi Zigbee guide](docs/raspberry-pi-zigbee.md) — historical planning reference
+- [Original Zigbee plug research](docs/raspberry-pi-zigbee-plug-research.md) — historical purchasing reference
 
-These relative links assume `config-guides` is checked out beside this repository.
+The current hardware inventory above supersedes the original purchasing suggestions.
