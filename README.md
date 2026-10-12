@@ -113,7 +113,18 @@ reported as `off`; actual power-cycle behavior still needs testing.
 ## Local Fedora test setup
 
 Install Podman if necessary (`sudo dnf install podman`), then run as your normal
-user:
+user. For routine startup, including after reboot, use:
+
+```bash
+./scripts/start-zigbee.sh
+```
+
+This starts or resumes the local services, preserves paired devices and network
+data, and waits for <http://127.0.0.1:8080> to respond. It is safe to rerun when
+services are already running. It does not install automatic boot startup or
+change device switch states.
+
+For individual setup and diagnostic operations:
 
 ```bash
 ./scripts/setup-zigbee.sh check
