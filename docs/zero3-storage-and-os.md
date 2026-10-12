@@ -72,9 +72,11 @@ standalone enclosure.
 
 The two user-downloaded STL files are stored in this repository, unchanged:
 
-- [Standard HEX base](../models/zero3-case/OrangePiZero3_Base_StandardHex.stl)
-- [Standard HEX top with external antenna retention](../models/zero3-case/OrangePiZero3_Top_StandardHex_ExternalAntenna.stl)
+- [Thick HEX base](../models/zero3-case/OrangePiZero3_Base_ThickHex.stl)
+- [Thick HEX top with external antenna retention](../models/zero3-case/OrangePiZero3_Top_ThickHex_ExternalAntenna.stl)
 
+These replace the previously selected Standard HEX files. The user selected the
+thicker hex-pattern variant; physical fit and print quality remain untested.
 Print one of each using PETG / FDM. Source: the Printables model linked above,
 by **TheParanoidEngineer**. These are third-party designs, not authored by this
 project. The original model's license has not yet been verified; do not assume
