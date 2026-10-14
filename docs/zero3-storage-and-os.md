@@ -182,15 +182,15 @@ Verified through a real SSH session:
   checking, using the same host key the user accepted at first login.
 
 The Fedora computer's `~/.ssh/config` is a symlink to the managed source at
-`~/code/config-guides/autoconfs/ssh/config`. That source now defines `orange-pi-zero-3`,
+`~/code/config-guides/autoconfs/ssh/config`. That source defines `orangepizero3`,
 using hostname `orangepizero3`, user `terence`, and `~/.ssh/id_ed25519`.
-`orange-pi-zero-3` is only this computer's SSH shortcut, named for the hardware
-rather than a project; it does not rename the remote host or its services.
+The local SSH shortcut now matches the board's existing hostname rather than a
+project name; it does not rename the remote host or its services.
 On this computer:
 
 ```bash
-ssh orange-pi-zero-3
-ssh orange-pi-zero-3 'free -h'
+ssh orangepizero3
+ssh orangepizero3 'free -h'
 ```
 
 The board's password is **not** in SSH config, this repository, or a retained
@@ -207,7 +207,7 @@ The default terminfo database did not recognize `xterm-kitty`, despite
 and caused `tput` to exit `3`. The reusable initialization step is:
 
 ```bash
-./scripts/setup-ssh-terminal.sh orange-pi-zero-3 xterm-kitty
+./scripts/setup-ssh-terminal.sh orangepizero3 xterm-kitty
 ```
 
 The client's definition was compiled into `terence`'s `~/.terminfo`, keeping the

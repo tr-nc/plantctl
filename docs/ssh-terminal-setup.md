@@ -27,7 +27,7 @@ tput: unknown terminal "xterm-kitty"
 在**本机电脑**的项目目录运行：
 
 ```bash
-./scripts/setup-ssh-terminal.sh orange-pi-zero-3 xterm-kitty
+./scripts/setup-ssh-terminal.sh orangepizero3 xterm-kitty
 ```
 
 其他树莓派、Orange Pi 或 Linux 主机只需换 SSH 登录目标：
@@ -84,8 +84,8 @@ Debian / Ubuntu 可由管理员安装 `ncurses-bin`。本机若没有对应终�
 ```bash
 bash -n scripts/setup-ssh-terminal.sh
 python3 -m unittest discover -s tests -p 'test_setup_ssh_terminal.py' -v
-ssh orange-pi-zero-3 'TERM=xterm-kitty tput colors'
-TERM=xterm-kitty ssh -tt orange-pi-zero-3 'tput colors'
+ssh orangepizero3 'TERM=xterm-kitty tput colors'
+TERM=xterm-kitty ssh -tt orangepizero3 'tput colors'
 ```
 
 自动测试用本机真实 ncurses 工具编译和查询数据库，只有 SSH 传输被替换成临时

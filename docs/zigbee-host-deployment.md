@@ -107,20 +107,20 @@ APT 复用了该源旧索引。未修改这个源、未升级内核；不影响�
 Fedora 浏览器打开上方网址即可。SSH 查看服务：
 
 ```bash
-ssh orange-pi-zero-3 'systemctl is-active mosquitto plantctl-lan-guard plantctl-zigbee2mqtt'
-ssh orange-pi-zero-3 'journalctl -u plantctl-zigbee2mqtt -n 50 --no-pager'
+ssh orangepizero3 'systemctl is-active mosquitto plantctl-lan-guard plantctl-zigbee2mqtt'
+ssh orangepizero3 'journalctl -u plantctl-zigbee2mqtt -n 50 --no-pager'
 ```
 
 需要主动重启网关时：
 
 ```bash
-ssh -t orange-pi-zero-3 'sudo systemctl restart plantctl-zigbee2mqtt'
+ssh -t orangepizero3 'sudo systemctl restart plantctl-zigbee2mqtt'
 ```
 
 若需连同 Broker 重启，显式重启两者，不依赖单独重启依赖服务来恢复网关：
 
 ```bash
-ssh -t orange-pi-zero-3 'sudo systemctl restart mosquitto plantctl-zigbee2mqtt'
+ssh -t orangepizero3 'sudo systemctl restart mosquitto plantctl-zigbee2mqtt'
 ```
 
 Quadlet 生成的服务显示 `UnitFileState=generated`，由源文件 `[Install]` 自动加入

@@ -14,7 +14,7 @@
 
 ## 1. 电源管理芯片的已确认信息
 
-通过本机 `ssh orange-pi-zero-3` 读取运行中的设备树和 I2C 驱动信息：
+通过本机 `ssh orangepizero3` 读取运行中的设备树和 I2C 驱动信息：
 
 ```text
 /sys/firmware/devicetree/base/soc/i2c@7081400/pmic@36
@@ -70,7 +70,7 @@ PMIC 损坏”，也不是板型总体故障率统计。[4]
 在 Fedora 上，用户主动决定关机时运行：
 
 ```bash
-ssh -t orange-pi-zero-3 'sudo poweroff'
+ssh -t orangepizero3 'sudo poweroff'
 ```
 
 `-t` 为 sudo 提供交互终端；如需验证，输入板子上 `terence` 用户的登录密码，
@@ -83,7 +83,7 @@ ssh -t orange-pi-zero-3 'sudo poweroff'
 仅重启系统则使用：
 
 ```bash
-ssh -t orange-pi-zero-3 'sudo reboot'
+ssh -t orangepizero3 'sudo reboot'
 ```
 
 以后连了水泵或灯，须先让负载进入安全状态并确认。**关掉主机不等于 Zigbee

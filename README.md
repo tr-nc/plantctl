@@ -206,7 +206,7 @@ After configuring SSH access, install the client's terminal definition on a new
 Linux host, especially when using Kitty with a minimal system:
 
 ```bash
-./scripts/setup-ssh-terminal.sh orange-pi-zero-3 xterm-kitty
+./scripts/setup-ssh-terminal.sh orangepizero3 xterm-kitty
 # Or use another SSH target and the current local terminal type:
 ./scripts/setup-ssh-terminal.sh user@raspberrypi.local
 ```

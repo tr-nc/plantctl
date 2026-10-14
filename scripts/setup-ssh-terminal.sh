@@ -5,10 +5,10 @@ set -euo pipefail
 usage() {
     printf '%s\n' \
         'Usage: scripts/setup-ssh-terminal.sh SSH_TARGET [TERMINAL_TYPE]' \
-        '  SSH_TARGET      An SSH alias or user@hostname, e.g. orange-pi-zero-3.' \
+        '  SSH_TARGET      An SSH alias or user@hostname, e.g. orangepizero3.' \
         '  TERMINAL_TYPE   Defaults to the current local $TERM.' \
         'Examples:' \
-        '  ./scripts/setup-ssh-terminal.sh orange-pi-zero-3 xterm-kitty' \
+        '  ./scripts/setup-ssh-terminal.sh orangepizero3 xterm-kitty' \
         '  ./scripts/setup-ssh-terminal.sh user@raspberrypi.local' \
         'Requires local ssh/infocmp and remote ncurses tic/infocmp/tput.' \
         'Uses ordinary SSH authentication and host-key checks; never stores a password.' \

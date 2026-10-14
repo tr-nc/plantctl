@@ -100,10 +100,10 @@ class SetupSshTerminalTests(unittest.TestCase):
         }
 
     def test_compiles_selected_definition_for_remote_user(self) -> None:
-        result = self.invoke("orange-pi-zero-3", "xterm-256color")
+        result = self.invoke("orangepizero3", "xterm-256color")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.verify_entry("xterm-256color")
-        self.assertEqual(self.calls()[0][-2], "orange-pi-zero-3")
+        self.assertEqual(self.calls()[0][-2], "orangepizero3")
         self.assertEqual(self.calls()[0][:2], ["-o", "ConnectTimeout=10"])
         self.assertIn("installed and verified", result.stdout)
         self.assertFalse((self.remote / ".bashrc").exists())
@@ -117,7 +117,7 @@ class SetupSshTerminalTests(unittest.TestCase):
         )
         if available.returncode != 0:
             self.skipTest("The local Kitty definition is not installed.")
-        result = self.invoke("orange-pi-zero-3", "xterm-kitty")
+        result = self.invoke("orangepizero3", "xterm-kitty")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.verify_entry("xterm-kitty")
         definitions = []
@@ -160,21 +160,17 @@ class SetupSshTerminalTests(unittest.TestCase):
         self.verify_entry("xterm-256color")
 
     def test_rerun_preserves_unrelated_terminal_entries(self) -> None:
-        self.assertEqual(self.invoke("orange-pi-zero-3", "dumb").returncode, 0)
+        self.assertEqual(self.invoke("orangepizero3", "dumb").returncode, 0)
         original = self.snapshot()
-        self.assertEqual(
-            self.invoke("orange-pi-zero-3", "xterm-256color").returncode, 0
-        )
+        self.assertEqual(self.invoke("orangepizero3", "xterm-256color").returncode, 0)
         after = self.snapshot()
         for filename, content in original.items():
             self.assertEqual(after[filename], content)
-        self.assertEqual(
-            self.invoke("orange-pi-zero-3", "xterm-256color").returncode, 0
-        )
+        self.assertEqual(self.invoke("orangepizero3", "xterm-256color").returncode, 0)
         self.assertEqual(self.snapshot(), after)
 
     def test_invalid_terminal_cannot_inject_remote_commands(self) -> None:
-        result = self.invoke("orange-pi-zero-3", "xterm-kitty; touch injected")
+        result = self.invoke("orangepizero3", "xterm-kitty; touch injected")
         self.assertEqual(result.returncode, 2)
         self.assertEqual(self.calls(), [])
         self.assertFalse((self.remote / ".terminfo").exists())
@@ -185,30 +181,28 @@ class SetupSshTerminalTests(unittest.TestCase):
         self.assertEqual(self.calls(), [])
 
     def test_unknown_local_term_fails_before_connecting(self) -> None:
-        result = self.invoke("orange-pi-zero-3", "plantctl-no-such-terminal-unique")
+        result = self.invoke("orangepizero3", "plantctl-no-such-terminal-unique")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Local terminfo", result.stderr)
         self.assertEqual(self.calls(), [])
 
     def test_ssh_failure_propagates_and_cleans_temporary_source(self) -> None:
         self.environment["TEST_SSH_FAIL"] = "1"
-        self.assertEqual(
-            self.invoke("orange-pi-zero-3", "xterm-256color").returncode, 255
-        )
+        self.assertEqual(self.invoke("orangepizero3", "xterm-256color").returncode, 255)
         self.assertFalse((self.remote / ".terminfo").exists())
 
     def test_missing_remote_compiler_fails_before_writing(self) -> None:
         empty_bin = self.root / "empty-bin"
         empty_bin.mkdir()
         self.environment["TEST_REMOTE_PATH"] = str(empty_bin)
-        result = self.invoke("orange-pi-zero-3", "xterm-256color")
+        result = self.invoke("orangepizero3", "xterm-256color")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("missing remote tic", result.stderr)
         self.assertFalse((self.remote / ".terminfo").exists())
 
     def test_missing_local_tools_have_an_actionable_error(self) -> None:
         self.environment["PATH"] = str(self.bin)
-        result = self.invoke("orange-pi-zero-3", "xterm-256color")
+        result = self.invoke("orangepizero3", "xterm-256color")
         self.assertEqual(result.returncode, 1)
         self.assertIn("Missing local infocmp", result.stderr)
         self.assertEqual(self.calls(), [])
