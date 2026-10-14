@@ -30,7 +30,7 @@ Verify suitability for the actual electrical loads before use.
 
 | Item | Model / identity | Verified details |
 | --- | --- | --- |
-| USB Zigbee coordinator | SONOFF **ZBDongle-E (Plus V2)** | Zigbee2MQTT adapter: `ember`; EmberZNet firmware **7.4.4**; successfully formed a network on Fedora |
+| USB Zigbee coordinator | SONOFF **ZBDongle-E (Plus V2)** | Adapter: `ember`; firmware **7.4.4**; original Fedora network migrated intact to Orange Pi |
 | Metering smart plug | Zigbee model **TS011F**; manufacturer identifier **`_TZ3210_cehuw1lw`** | Zigbee2MQTT definition: **`TS011F_plug_1`**; firmware **1.1.3**; friendly name **`plant-light`** |
 
 Coordinator label details (provided by the user):
@@ -110,7 +110,30 @@ reported as `off`; actual power-cycle behavior still needs testing.
   timeout, dry-run, and electrical protections where needed. Software and wireless
   control alone cannot guarantee safe shutdown.
 
-## Local Fedora test setup
+## Orange Pi live gateway
+
+Mosquitto **2.0.21** and Zigbee2MQTT **2.14.2** now run on the Orange Pi,
+managed by system-level systemd services. The existing `plant-light` pairing and
+network identity were preserved. Normal reboot, automatic startup, authenticated
+web access, and fresh device reports have been verified with Fedora's containers
+stopped. Fedora can be shut down without stopping the gateway.
+
+From the same allowed LAN, open <http://192.168.50.101:8080> or
+<http://orangepizero3.lan:8080>. At **Auth → Token**, use the web password chosen in
+the local installation dialog. No desktop or persistent SSH session is required
+on the board. MQTT listens only on the board's `127.0.0.1:1883`; the authenticated
+web port is restricted to the current `192.168.50.0/24` LAN. Do not expose it to
+the public internet. The IP is DHCP-assigned; use a router reservation for a
+long-term fixed address.
+
+See [deployment, operation, migration tools, and validation limits](docs/zigbee-host-deployment.md).
+This installs the device gateway, not the planned Rust scheduling/safety controller.
+
+## Historical local Fedora test setup
+
+These scripts are for local testing with the coordinator physically attached to
+Fedora, not for starting the live Orange Pi gateway. Do not run two applications
+against the same coordinator. The original data is retained for recovery.
 
 Install Podman if necessary (`sudo dnf install podman`), then run as your normal
 user. For routine startup, including after reboot, use:
@@ -164,19 +187,54 @@ joining afterward. Test plugs without connected pumps or other hazardous loads.
 Official references: [container installation](https://www.zigbee2mqtt.io/guide/installation/02_docker.html)
 and [Dongle-E / Ember adapter](https://www.zigbee2mqtt.io/guide/adapters/emberznet.html).
 
+## Wi-Fi setup helper
+
+From a Linux desktop with NetworkManager and a wireless adapter, run:
+
+```bash
+./scripts/select-wifi.py
+```
+
+This opens a nearby-network picker and masked password dialog, then prints only
+the path to a private temporary JSON file. It does not connect the computer,
+flash a card, or modify a target system. The caller must consume and delete the
+credentials file. See [usage, requirements, and output format](docs/wifi-selector.md).
+
+## SSH terminal setup for new machines
+
+After configuring SSH access, install the client's terminal definition on a new
+Linux host, especially when using Kitty with a minimal system:
+
+```bash
+./scripts/setup-ssh-terminal.sh orange-pi-zero-3 xterm-kitty
+# Or use another SSH target and the current local terminal type:
+./scripts/setup-ssh-terminal.sh user@raspberrypi.local
+```
+
+This compiles the definition into the remote login user's `~/.terminfo`, without
+sudo, password storage, changing `TERM`, or replacing unrelated terminal entries.
+See [SSH terminal initialization](docs/ssh-terminal-setup.md) for prerequisites,
+validation, and root/sudo limitations.
+
 ## Status
 
-Local Fedora startup verified: Mosquitto and Zigbee2MQTT are connected, the
-Dongle-E runs EmberZNet 7.4.4, a Zigbee network has formed, and the frontend returns
-HTTP 200. The `plant-light` plug is paired, frontend switching works, and metering
-data is reported. Controller implementation, metering accuracy, power-cycle
-behavior, and load-safety validation remain outstanding.
+Live Orange Pi gateway verified: Mosquitto and Zigbee2MQTT connect locally,
+firmware remains EmberZNet 7.4.4, and the original paired network is intact.
+LAN frontend login and device-control UI work; read-only queries receive fresh
+reports before and after a normal reboot. Services recover automatically without
+Fedora's local containers. No device switch was actuated during this deployment.
+Controller implementation, metering accuracy, power-cycle behavior, long-term
+stability, and load-safety validation remain outstanding.
 
 ## Design references
 
 Documentation is maintained in this repository:
 
-- [Zero 3 storage and OS choices](docs/zero3-storage-and-os.md)
+- [Zero 3 storage, OS, and first-boot setup](docs/zero3-storage-and-os.md)
+- [Zero 3 power, shutdown, and USB expansion research](docs/zero3-power-and-usb-expansion.md)
+- [Live Zigbee gateway deployment and LAN access](docs/zigbee-host-deployment.md)
+- [Reusable Wi-Fi selection dialog](docs/wifi-selector.md)
+- [Reusable SSH terminal initialization](docs/ssh-terminal-setup.md)
 - [Original Raspberry Pi Zigbee guide](docs/raspberry-pi-zigbee.md) — historical planning reference
 - [Original Zigbee plug research](docs/raspberry-pi-zigbee-plug-research.md) — historical purchasing reference
 

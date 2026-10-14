@@ -1,18 +1,24 @@
-# Orange Pi Zero 3: preliminary storage and OS choices
+# Orange Pi Zero 3: storage, OS, and first-boot setup
 
 ## Intended use
 
 Run Mosquitto, Zigbee2MQTT, and the Rust controller without a desktop. Connect the
 board over Wi-Fi and manage it from Fedora using SSH; no router Ethernet port is
-planned. The board has not arrived, so hardware compatibility remains untested.
+planned. The board, TF card, and reader have arrived. The system card has been
+flashed and configured for Wi-Fi. First boot, Wi-Fi connectivity, SSH key login,
+and root-filesystem expansion have now been verified.
 
 ## Purchased development board
 
 - Model: **Orange Pi Zero 3**.
-- RAM: **1.5GB**.
-- Condition: **second-hand, near-new** (seller/user description; not yet inspected).
-- Purchase price: **CNY 159**, as reported by the user.
-- Delivery and hardware validation: pending.
+- RAM: purchased as **1.5GB**; the running kernel reports `MemTotal: 1505864 kB`
+  (approximately **1.44 GiB** usable total), consistent with this variant.
+- Condition: **new**, according to the user's description on arrival; not
+  independently inspected. This supersedes the earlier second-hand description.
+- Purchase price: **CNY 159**, as previously reported by the user.
+- Delivery: user-confirmed. Boot, Wi-Fi, SSH, and card expansion: verified.
+  USB/Zigbee operation, LAN frontend access, network migration, and reboot
+  auto-start: verified; controller and load-safety validation: pending.
 
 ## Selected enclosure
 
@@ -85,8 +91,10 @@ commercial printing or redistribution permissions from their inclusion here.
 ## Selected storage
 
 User-selected card: **SanDisk (闪迪) Extreme 64GB microSDXC UHS-I**, marked
-**A2 / U3 / V30**. Quoted price: **CNY 55** (provided by the user; purchase and
-hardware validation not yet confirmed).
+**A2 / U3 / V30**. Quoted price: **CNY 55**, as previously provided by the user.
+The user has confirmed a card and reader arrived. The USB reader reported a card
+capacity of **62,723,719,168 bytes**; the exact physical card SKU and authenticity
+have not been independently inspected.
 
 TF and microSD refer to the same card form factor here. 64GB provides room for
 packages, container images, and logs.
@@ -99,31 +107,120 @@ are incompatible.
 SanDisk Extreme variants carry Class 10, U3, V30, and A2 ratings; check the exact
 SKU. Class 10 and U3 describe sustained-write speed classes; A1/A2 describe
 application-oriented random I/O, not endurance. An A2 card can be used without
-assuming the board supports full A2 acceleration. Prices, authenticity, and this
-specific board/card combination have not been verified.
+assuming the board supports full A2 acceleration. Price and authenticity have not
+been independently verified. Basic boot and storage checks passed for this
+board/card combination; A2 acceleration and long-term endurance remain untested.
 
-## OS candidate
+## Flashed OS
 
-**Armbian Minimal / IOT specifically for Orange Pi Zero 3**, preferably a
-Debian-based image when available. This is a preliminary candidate, not a
-finalized or tested selection.
+**Armbian Debian 13 (Trixie) Minimal for Orange Pi Zero 3**, ARM64, without a
+graphical desktop. This is a **community nightly image**, not a claim of stable
+or standard supported-board status. The local image identifies itself as
+`IMAGE_TYPE=nightly`, `BOARD_TYPE=csc`, and `BOARD=orangepizero3`.
 
-- No graphical desktop; suitable for a small SSH-managed service host.
-- Zero 3 images are community-maintained. Recheck image availability, maintenance,
-  and onboard Wi-Fi support when the board arrives.
-- Fallback: Orange Pi's board-specific **Debian Server** image.
-- Fedora is not the first choice: general AArch64 support does not establish
-  Zero 3 boot and onboard Wi-Fi support, and official board support was not found.
+- Release: **26.11.0-trunk.83**, current kernel **6.18.55**.
+- File: `Armbian_community_26.11.0-trunk.83_Orangepizero3_trixie_current_6.18.55_minimal.img.xz`.
+- Source: Armbian's `dl.armbian.com` redirect pointed to the
+  [armbian/community GitHub release](https://github.com/armbian/community/releases/tag/26.11.0-trunk.83).
+  Direct board-page access failed from the development computer.
+- Archive SHA-256 matched the digest from the GitHub release metadata:
+  `71056d9db84474fa92e5c2c8ba5cd15883a49289fef0c76706e99b19706d222d`.
+  Archive integrity also passed `xz -t`; no detached-signature verification was performed.
+- The **1,619,001,344-byte** uncompressed image was written to the identified
+  removable USB card, flushed, and every written byte was compared with the image
+  after flushing block-device caches. Readback passed.
+- The initial ext4 partition is approximately **1.5 GiB**, labeled `armbi_root`.
+  This is the image's initial partition size, not the full card capacity;
+  first-boot expansion has since been verified: the root filesystem reports
+  approximately **57 GiB**, with **55 GiB** available at the first check.
 
-## Configuration deferred until hardware arrives
+Fallback, if real hardware validation fails: Orange Pi's board-specific
+**Debian Server** image. Fedora is not the first choice: general AArch64 support
+does not establish Zero 3 boot and onboard Wi-Fi support.
 
-Plan to preconfigure Wi-Fi and login access before first boot, avoiding the need
-for Ethernet or a display. Armbian documents first-boot network/account presets;
-choose the exact method against the actual downloaded image.
+## Wi-Fi configuration on the system card
 
-Flashing, configuration commands, first connection, service deployment, and
-migration of the existing Zigbee network will be documented as they are tested.
-Keep real credentials and Zigbee network keys out of Git.
+The Fedora computer was actually connected by Ethernet, with no saved Wi-Fi
+profile in NetworkManager. Its disconnected wireless adapter was used only to
+scan nearby networks. The user selected a network and entered its password in
+local dialogs; neither the password nor the credentials file contents were
+printed. The reusable interface is now documented in
+[Wi-Fi selector](wifi-selector.md).
+
+The actual image uses **Netplan 1.1.2 + systemd-networkd**, with `wpasupplicant`
+installed. A separate root-owned, mode-`0600` file was written on the card:
+
+```text
+/etc/netplan/30-wifis-dhcp.yaml
+```
+
+It configures `wlan0`, DHCP, and regulatory domain `CN`; the existing Ethernet
+DHCP defaults were preserved. This Netplan networkd generator does not support
+Wi-Fi `match:` rules, so no wildcard interface match was used. The actual board
+has now booted with kernel `6.18.55-current-sunxi64`; `wlan0` is up with a DHCP
+address, and SSH is reachable from the wired Fedora computer. The connected
+frequency band has not been verified.
+
+YAML serialization and configuration readback passed; owner and permissions were
+checked. The temporary credentials file on the Fedora computer was deleted, and
+the card was synced, unmounted, and the USB reader safely powered off. Subsequent
+first-boot checks confirmed that Wi-Fi connects and the board can be managed over
+SSH.
+
+## First-boot results and SSH access
+
+Verified through a real SSH session:
+
+- Board model: `OrangePi Zero3`; architecture: `aarch64`.
+- Hostname: `orangepizero3`; first observed DHCP address: `192.168.50.101`.
+- User: `terence`; existing Fedora Ed25519 public key authorized for this user.
+- Usable total RAM: approximately **1.44 GiB**; available RAM was approximately
+  **1.3 GiB** at the initial check. Swap reported **735 MiB**, which is not
+  additional physical RAM.
+- Root filesystem: `/dev/mmcblk0p1`, approximately **57 GiB** after expansion.
+- SSH password-free login validated with `BatchMode=yes` and strict host-key
+  checking, using the same host key the user accepted at first login.
+
+The Fedora computer's `~/.ssh/config` is a symlink to the managed source at
+`~/code/config-guides/autoconfs/ssh/config`. That source now defines `orange-pi-zero-3`,
+using hostname `orangepizero3`, user `terence`, and `~/.ssh/id_ed25519`.
+`orange-pi-zero-3` is only this computer's SSH shortcut, named for the hardware
+rather than a project; it does not rename the remote host or its services.
+On this computer:
+
+```bash
+ssh orange-pi-zero-3
+ssh orange-pi-zero-3 'free -h'
+```
+
+The board's password is **not** in SSH config, this repository, or a retained
+temporary file. Only the public key was installed on the board; the private key
+stays on Fedora and is available through the existing SSH agent. On future
+sessions the agent may need unlocking if the private key is passphrase-protected.
+Hostname resolution depends on a reachable local DNS entry; this is not public
+internet access or a static-IP guarantee.
+
+## SSH terminal compatibility
+
+The default terminfo database did not recognize `xterm-kitty`, despite
+`ncurses-term` being installed. This reproduced through real SSH TTY allocation
+and caused `tput` to exit `3`. The reusable initialization step is:
+
+```bash
+./scripts/setup-ssh-terminal.sh orange-pi-zero-3 xterm-kitty
+```
+
+The client's definition was compiled into `terence`'s `~/.terminfo`, keeping the
+advertised terminal type unchanged. Subsequent SSH tests returned 256 colors,
+valid column count and clear-screen capability; `xterm-256color` remained working.
+This is per-user configuration, not a system-wide or root/sudo guarantee.
+See [diagnosis, setup script, and validation](ssh-terminal-setup.md).
+
+Mosquitto and Zigbee2MQTT have now been deployed, with the original network,
+LAN frontend login, live device reports, and reboot auto-start verified. See
+[the live gateway record](zigbee-host-deployment.md). Next: implement automation
+and validate load-safety and recovery behavior. Keep real credentials and Zigbee
+network keys out of Git.
 
 ## Sources
 
