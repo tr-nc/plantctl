@@ -232,6 +232,7 @@ Documentation is maintained in this repository:
 
 - [Zero 3 storage, OS, and first-boot setup](docs/zero3-storage-and-os.md)
 - [Zero 3 power, shutdown, and USB expansion research](docs/zero3-power-and-usb-expansion.md)
+- [GL-MT3000 router power-off precautions](docs/gl-mt3000-power-off.md)
 - [Live Zigbee gateway deployment and LAN access](docs/zigbee-host-deployment.md)
 - [Reusable Wi-Fi selection dialog](docs/wifi-selector.md)
 - [Reusable SSH terminal initialization](docs/ssh-terminal-setup.md)
