@@ -120,58 +120,97 @@
             <button id="on" disabled>开灯</button
             ><button id="off" class="secondary" disabled>关灯</button>
           </div>
-          <div class="status-row">
-            <p id="feedback" role="status" aria-live="polite">正在连接…</p>
+          <p id="feedback" role="status" aria-live="polite" hidden></p>
+        </div>
+        <form id="schedule-form" class="schedule">
+          <div class="schedule-heading">
+            <label for="schedule-enabled">自动开关</label>
+            <span class="switch">
+              <input
+                id="schedule-enabled"
+                type="checkbox"
+                role="switch"
+                disabled
+              />
+              <span aria-hidden="true"></span>
+            </span>
+          </div>
+          <div
+            id="schedule-dial"
+            class="dial"
+            role="group"
+            aria-label="每日开灯时段，24 小时表盘"
+          >
+            <svg viewBox="0 0 320 320" aria-hidden="true">
+              <circle class="dial-track" cx="160" cy="160" r="116" />
+              <g class="dial-ticks"></g>
+              <path class="dial-arc" />
+              <text x="160" y="16">00</text>
+              <text x="305" y="165">06</text>
+              <text x="160" y="314">12</text>
+              <text x="15" y="165">18</text>
+            </svg>
+            <div class="dial-centre">
+              <span>每天亮灯</span
+              ><strong class="dial-duration">14 小时</strong>
+            </div>
             <button
-              id="refresh"
-              class="refresh"
-              aria-label="刷新设备状态"
-              title="刷新设备状态"
+              type="button"
+              class="dial-handle on"
+              data-edge="on"
+              role="slider"
+              aria-label="开启时间"
+              aria-valuemin="0"
+              aria-valuemax="1439"
+              aria-valuenow="480"
+              aria-valuetext="08:00"
               disabled
             >
-              ↻
+              开
+            </button>
+            <button
+              type="button"
+              class="dial-handle off"
+              data-edge="off"
+              role="slider"
+              aria-label="关闭时间"
+              aria-valuemin="0"
+              aria-valuemax="1439"
+              aria-valuenow="1320"
+              aria-valuetext="22:00"
+              disabled
+            >
+              关
             </button>
           </div>
-          <form id="schedule-form" class="schedule">
-            <div class="schedule-heading">
-              <label for="schedule-enabled">自动开关</label>
-              <span class="switch">
-                <input
-                  id="schedule-enabled"
-                  type="checkbox"
-                  role="switch"
-                  disabled
-                />
-                <span aria-hidden="true"></span>
-              </span>
-            </div>
-            <div class="schedule-times">
-              <label for="schedule-on"
-                >开启时间<input
-                  id="schedule-on"
-                  type="time"
-                  value="08:00"
-                  required
-                  disabled
-              /></label>
-              <label for="schedule-off"
-                >关闭时间<input
-                  id="schedule-off"
-                  type="time"
-                  value="22:00"
-                  required
-                  disabled
-              /></label>
-              <button id="schedule-save" type="submit" disabled>保存</button>
-            </div>
-            <p id="schedule-feedback" role="status" aria-live="polite">
-              正在加载…
-            </p>
-            <p class="schedule-hint">
-              启用或改时后立即按时段执行；手动开关保持到下次定时。
-            </p>
-          </form>
-        </div>
+          <div class="dial-values">
+            <button
+              type="button"
+              data-pick="on"
+              aria-label="选择开启时间，再点按圆环调整"
+              aria-pressed="true"
+              disabled
+            >
+              <span>开启</span><strong>08:00</strong>
+            </button>
+            <button
+              type="button"
+              data-pick="off"
+              aria-label="选择关闭时间，再点按圆环调整"
+              aria-pressed="false"
+              disabled
+            >
+              <span>关闭</span><strong>22:00</strong>
+            </button>
+          </div>
+          <button id="schedule-save" type="submit" disabled>保存</button>
+          <p id="schedule-feedback" role="status" aria-live="polite">
+            正在加载…
+          </p>
+          <p class="schedule-hint">
+            启用或改时后立即按时段执行；手动开关保持到下次定时。
+          </p>
+        </form>
       </article>
     </main>
   </body>

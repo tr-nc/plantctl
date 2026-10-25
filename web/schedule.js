@@ -1,4 +1,10 @@
+import { ScheduleDial } from "./dial.mjs";
+
 const el = (id) => document.getElementById(id);
+const dial = new ScheduleDial(el("schedule-dial"), () => {
+  controls();
+  note(dirty() ? "尚未保存" : "每天 · 北京时间");
+});
 let saved = null;
 let busy = false;
 let available = false;
@@ -6,27 +12,23 @@ let reading = false;
 let writes = 0;
 
 function dirty() {
-  return (
-    saved &&
-    (el("schedule-on").value !== saved.on ||
-      el("schedule-off").value !== saved.off)
-  );
+  return saved && (dial.times.on !== saved.on || dial.times.off !== saved.off);
 }
 function controls() {
-  for (const id of ["schedule-enabled", "schedule-on", "schedule-off"])
-    el(id).disabled = busy || !available;
+  el("schedule-enabled").disabled = busy || !available;
+  dial.setDisabled(busy || !available);
   el("schedule-save").disabled = busy || !available || !dirty();
 }
 function note(text) {
   el("schedule-feedback").textContent = text;
 }
 function show(data, force = false) {
+  if (dial.drag && !force) return;
   const preserveDraft = dirty() && !force;
   if (!preserveDraft) {
     saved = data;
     el("schedule-enabled").checked = data.enabled;
-    el("schedule-on").value = data.on;
-    el("schedule-off").value = data.off;
+    dial.setRange(data.on, data.off);
   }
   if (!data.enabled) note("每天 · 北京时间");
   else if (!data.clock_ready) note("等待系统校时，暂不执行。");
@@ -88,11 +90,7 @@ async function load() {
 }
 async function save() {
   if (busy || !available || !saved) return;
-  if (!el("schedule-form").reportValidity()) {
-    el("schedule-enabled").checked = saved.enabled;
-    return;
-  }
-  if (el("schedule-on").value === el("schedule-off").value) {
+  if (dial.times.on === dial.times.off) {
     el("schedule-enabled").checked = saved.enabled;
     note("开启和关闭时间不能相同。");
     return;
@@ -104,8 +102,7 @@ async function save() {
   try {
     const data = await request("PUT", {
       enabled: el("schedule-enabled").checked,
-      on: el("schedule-on").value,
-      off: el("schedule-off").value,
+      ...dial.times,
       revision: saved.revision,
     });
     show(data, true);
@@ -131,11 +128,6 @@ el("schedule-form").addEventListener("submit", (event) => {
   save();
 });
 el("schedule-enabled").addEventListener("change", save);
-for (const id of ["schedule-on", "schedule-off"])
-  el(id).addEventListener("input", () => {
-    controls();
-    if (dirty()) note("时间已修改，尚未保存。");
-  });
 controls();
 load();
 setInterval(load, 15000);

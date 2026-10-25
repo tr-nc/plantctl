@@ -3,7 +3,7 @@
 set -euo pipefail
 [[ $EUID == 0 ]] || { echo 'Run with sudo on the Orange Pi.' >&2; exit 1; }
 SOURCE=$(cd -- "$(dirname -- "$0")/../web" && pwd)
-for file in index.html app.js schedule.js style.css nginx.conf; do test -f "$SOURCE/$file"; done
+for file in index.html app.js schedule.js dial.mjs style.css nginx.conf; do test -f "$SOURCE/$file"; done
 CONTROLLER=$(cd -- "$SOURCE/../controller" && pwd)
 for file in schedule.py service.py; do test -f "$CONTROLLER/$file"; done
 if [[ -e /opt/plantctl-controller && ! -f /etc/plantctl/web.owner ]]; then
@@ -19,7 +19,7 @@ fi
 systemctl mask nginx.service
 DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends nginx-light python3-paho-mqtt
 install -d -m 0755 /opt/plantctl-web /etc/plantctl
-install -m 0644 "$SOURCE/index.html" "$SOURCE/app.js" "$SOURCE/schedule.js" "$SOURCE/style.css" /opt/plantctl-web/
+install -m 0644 "$SOURCE/index.html" "$SOURCE/app.js" "$SOURCE/schedule.js" "$SOURCE/dial.mjs" "$SOURCE/style.css" /opt/plantctl-web/
 install -d -m 0755 /opt/plantctl-controller/controller
 install -m 0644 "$CONTROLLER/schedule.py" "$CONTROLLER/service.py" /opt/plantctl-controller/controller/
 install -m 0644 "$SOURCE/nginx.conf" /etc/plantctl/web-nginx.conf

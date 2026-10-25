@@ -2,12 +2,20 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const vm = require("node:vm");
 const fs = require("node:fs");
-
+const settle = () => new Promise((resolve) => setImmediate(resolve));
 function page() {
-  const elements = new Map();
-  const timers = new Map();
-  let nextTimer = 0;
-  const sockets = [];
+  const elements = new Map(),
+    timers = new Map(),
+    sockets = [];
+  let id = 0,
+    poll;
+  const status = {
+    gateway_online: true,
+    fresh: true,
+    report: { state: "OFF", power: 0 },
+    version: "boot:1",
+  };
+  const network = { fail: false, reads: 0 };
   class Socket {
     static OPEN = 1;
     readyState = 1;
@@ -16,122 +24,140 @@ function page() {
       this.url = url;
       sockets.push(this);
     }
-    send(message) {
-      this.sent.push(JSON.parse(message));
+    send(value) {
+      this.sent.push(JSON.parse(value));
     }
     close() {
       this.readyState = 3;
       this.onclose?.({ code: 1000 });
     }
-    receive(topic, payload) {
+    receive(topic, payload = {}) {
       this.onmessage({ data: JSON.stringify({ topic, payload }) });
     }
   }
-  const get = (id) => {
-    if (!elements.has(id))
-      elements.set(id, {
+  const get = (name) => {
+    if (!elements.has(name))
+      elements.set(name, {
         textContent: "",
+        hidden: false,
         disabled: false,
         dataset: {},
         classList: { toggle() {} },
       });
-    return elements.get(id);
+    return elements.get(name);
   };
   vm.runInNewContext(fs.readFileSync("web/app.js", "utf8"), {
     document: { getElementById: get },
     location: { protocol: "http:", host: "192.168.50.102" },
     WebSocket: Socket,
-    Date,
+    AbortController,
     setTimeout(fn, delay) {
-      const id = ++nextTimer;
-      timers.set(id, { fn, delay });
+      timers.set(++id, { fn, delay });
       return id;
     },
-    clearTimeout(id) {
-      timers.delete(id);
+    clearTimeout(i) {
+      timers.delete(i);
+    },
+    setInterval(fn) {
+      poll = fn;
+    },
+    async fetch(url) {
+      assert.equal(url, "/device-status");
+      network.reads++;
+      if (network.fail) throw new Error("offline");
+      const data = JSON.parse(JSON.stringify(status));
+      return { ok: true, json: async () => data };
     },
   });
-  return { get, sockets, timers };
+  return { get, timers, sockets, status, network, poll: () => poll() };
 }
-test("opens automatically without credentials; controls wait for gateway data", () => {
-  const p = page(),
-    ws = p.sockets[0];
-  assert.equal(p.sockets.length, 1);
-  assert.equal(ws.url, "ws://192.168.50.102/api");
+test("opens without credentials, waits for gateway data, normal UI has no refresh or update text", async () => {
+  const p = page();
+  await settle();
   assert.equal(p.get("on").disabled, true);
-  assert.equal(ws.sent.length, 0);
-  ws.receive("bridge/state", { state: "online" });
+  const ws = p.sockets[0];
+  assert.equal(ws.url, "ws://192.168.50.102/api");
+  ws.receive("bridge/state");
+  await settle();
   assert.equal(p.get("on").disabled, false);
+  assert.equal(p.get("feedback").hidden, true);
+  assert.equal(ws.sent.length, 0);
   assert.doesNotMatch(
     fs.readFileSync("web/index.html", "utf8"),
-    /type="password"|login-form/,
+    /id="refresh"|type="password"|type="time"/,
   );
 });
-test("explicit commands wait for matching state and never update optimistically", () => {
-  const p = page(),
-    ws = p.sockets[0];
-  ws.receive("bridge/state", { state: "online" });
-  ws.receive("plant-light", { state: "OFF", power: 0 });
+test("manual command waits for a new matching report; cached values never confirm it", async () => {
+  const p = page();
+  await settle();
+  const ws = p.sockets[0];
+  ws.receive("bridge/state");
+  await settle();
   p.get("on").onclick();
   assert.deepEqual(ws.sent, [
     { topic: "plant-light/set", payload: { state: "ON" } },
   ]);
-  assert.match(p.get("state-badge").textContent, /已关闭/);
+  assert.equal(p.get("device-visual").dataset.state, "off");
   assert.equal(p.get("off").disabled, true);
-  ws.receive("plant-light", { power: 5 });
+  await p.poll();
   assert.equal(p.get("off").disabled, true);
-  ws.receive("plant-light", { state: "ON" });
+  p.status.report = { state: "ON", power: 25 };
+  p.status.version = "boot:2";
+  ws.receive("plant-light");
+  await settle();
+  assert.equal(p.get("device-visual").dataset.state, "on");
   assert.equal(p.get("off").disabled, false);
-  assert.match(p.get("feedback").textContent, /已更新/);
-  p.get("off").onclick();
-  assert.deepEqual(ws.sent[1], {
-    topic: "plant-light/set",
-    payload: { state: "OFF" },
-  });
+  assert.equal(p.get("feedback").hidden, true);
 });
-test("query, timeout, offline and reconnection do not replay commands", () => {
-  const p = page(),
-    ws = p.sockets[0];
-  ws.receive("bridge/state", { state: "online" });
-  p.get("refresh").onclick();
-  assert.deepEqual(ws.sent[0], {
-    topic: "plant-light/get",
-    payload: { state: "" },
-  });
-  [...p.timers.values()].find((t) => t.delay === 12000).fn();
-  assert.match(p.get("feedback").textContent, /暂未收到/);
-  ws.receive("bridge/state", { state: "offline" });
+test("server freshness and connection determine illustration; automatic recovery requires no query buttons", async () => {
+  const p = page();
+  await settle();
+  const ws = p.sockets[0];
+  ws.receive("bridge/state");
+  await settle();
+  assert.equal(p.get("device-visual").dataset.state, "off");
+  p.status.fresh = false;
+  p.status.report = {};
+  await p.poll();
+  assert.equal(p.get("device-visual").dataset.state, "unknown");
+  assert.match(p.get("feedback").textContent, /自动查询/);
+  p.status.fresh = true;
+  p.status.report = { state: "ON" };
+  p.status.version = "boot:2";
+  await p.poll();
+  assert.equal(p.get("device-visual").dataset.state, "on");
+  assert.equal(p.get("feedback").hidden, true);
+  p.network.fail = true;
+  await p.poll();
   assert.equal(p.get("on").disabled, true);
+  assert.equal(p.get("device-visual").dataset.state, "unknown");
+  p.network.fail = false;
+  await p.poll();
+  assert.equal(p.get("device-visual").dataset.state, "on");
+  ws.close();
+  assert.equal(p.get("device-visual").dataset.state, "unknown");
+  assert.equal(ws.sent.length, 0);
+});
+test("timeouts and reconnects report uncertainty without replaying commands", async () => {
+  const p = page();
+  await settle();
+  const ws = p.sockets[0];
+  ws.receive("bridge/state");
+  await settle();
+  p.get("on").onclick();
+  [...p.timers.values()].find((t) => t.delay === 15000).fn();
+  assert.match(p.get("feedback").textContent, /未收到操作确认/);
   ws.close();
   [...p.timers.values()].find((t) => t.delay === 4000).fn();
   assert.equal(p.sockets.length, 2);
-  assert.equal(p.sockets[1].url, "ws://192.168.50.102/api");
   assert.equal(p.sockets[1].sent.length, 0);
 });
-test("illustration follows reported state, never optimistic clicks or stale disconnected state", () => {
-  const p = page(),
-    ws = p.sockets[0];
-  assert.equal(p.get("device-visual").dataset.state, "unknown");
-  ws.receive("plant-light", { state: "ON" });
-  assert.equal(p.get("device-visual").dataset.state, "unknown");
-  ws.receive("bridge/state", { state: "online" });
-  assert.equal(p.get("device-visual").dataset.state, "on");
-  p.get("off").onclick();
-  assert.equal(p.get("device-visual").dataset.state, "on");
-  ws.receive("plant-light", { state: "OFF" });
-  assert.equal(p.get("device-visual").dataset.state, "off");
-  ws.receive("bridge/state", { state: "offline" });
-  assert.equal(p.get("device-visual").dataset.state, "unknown");
-  ws.close();
-  assert.equal(p.get("device-visual").dataset.state, "unknown");
-});
-test("upstream credential failure disables controls and retries without asking for a password", () => {
-  const p = page(),
-    ws = p.sockets[0];
-  ws.onclose({ code: 4401 });
+test("upstream configuration errors disable controls and retry", async () => {
+  const p = page();
+  await settle();
+  p.sockets[0].onclose({ code: 4401 });
   assert.equal(p.get("on").disabled, true);
   assert.match(p.get("feedback").textContent, /配置异常/);
   [...p.timers.values()].find((t) => t.delay === 4000).fn();
   assert.equal(p.sockets.length, 2);
-  assert.equal(p.sockets[1].sent.length, 0);
 });

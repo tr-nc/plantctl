@@ -6,7 +6,24 @@ const settle = () => new Promise((resolve) => setImmediate(resolve));
 function page() {
   const nodes = new Map(),
     requests = [];
-  let poll;
+  let poll, dial;
+  class ScheduleDial {
+    constructor(root, onChange) {
+      this.times = { on: "08:00", off: "22:00" };
+      this.onChange = onChange;
+      dial = this;
+    }
+    setRange(on, off) {
+      this.times = { on, off };
+    }
+    setDisabled(value) {
+      this.disabled = value;
+    }
+    edit(edge, value) {
+      this.times[edge] = value;
+      this.onChange();
+    }
+  }
   const server = {
     enabled: false,
     on: "08:00",
@@ -34,42 +51,46 @@ function page() {
     return nodes.get(id);
   };
   const network = { fail: false };
-  vm.runInNewContext(fs.readFileSync("web/schedule.js", "utf8"), {
-    document: { getElementById: get },
-    Date,
-    Intl,
-    AbortController,
-    setTimeout() {
-      return 1;
-    },
-    clearTimeout() {},
-    setInterval(fn) {
-      poll = fn;
-    },
-    async fetch(url, options) {
-      requests.push({ url, ...options });
-      if (network.fail) throw new Error("offline");
-      let status = 200,
-        data = { ...server };
-      if (options.method === "PUT") {
-        const plan = JSON.parse(options.body);
-        if (plan.revision !== server.revision) {
-          status = 409;
-          data = { error: "conflict" };
-        } else {
-          Object.assign(server, plan, { revision: server.revision + 1 });
+  vm.runInNewContext(
+    fs.readFileSync("web/schedule.js", "utf8").replace(/^import .*;\n/, ""),
+    {
+      ScheduleDial,
+      document: { getElementById: get },
+      Date,
+      Intl,
+      AbortController,
+      setTimeout() {
+        return 1;
+      },
+      clearTimeout() {},
+      setInterval(fn) {
+        poll = fn;
+      },
+      async fetch(url, options) {
+        requests.push({ url, ...options });
+        if (network.fail) throw new Error("offline");
+        let status = 200,
           data = { ...server };
+        if (options.method === "PUT") {
+          const plan = JSON.parse(options.body);
+          if (plan.revision !== server.revision) {
+            status = 409;
+            data = { error: "conflict" };
+          } else {
+            Object.assign(server, plan, { revision: server.revision + 1 });
+            data = { ...server };
+          }
         }
-      }
-      return { ok: status === 200, status, json: async () => data };
+        return { ok: status === 200, status, json: async () => data };
+      },
     },
-  });
-  return { get, server, requests, network, poll: () => poll() };
+  );
+  return { get, dial, server, requests, network, poll: () => poll() };
 }
 test("loads persisted settings without writing; toggle saves immediately", async () => {
   const p = page();
   await settle();
-  assert.equal(p.get("schedule-on").value, "08:00");
+  assert.equal(p.dial.times.on, "08:00");
   assert.equal(p.get("schedule-enabled").checked, false);
   assert.equal(p.requests.length, 1);
   p.get("schedule-enabled").checked = true;
@@ -86,21 +107,19 @@ test("loads persisted settings without writing; toggle saves immediately", async
 test("equal times are rejected, drafts survive polling, conflicts reload explicitly", async () => {
   const p = page();
   await settle();
-  p.get("schedule-on").value = "22:00";
-  p.get("schedule-on").input();
+  p.dial.edit("on", "22:00");
   p.get("schedule-enabled").checked = true;
   await p.get("schedule-enabled").change();
   assert.equal(p.server.enabled, false);
   assert.match(p.get("schedule-feedback").textContent, /不能相同/);
-  p.get("schedule-on").value = "20:00";
-  p.get("schedule-on").input();
+  p.dial.edit("on", "20:00");
   p.server.on = "19:00";
   p.server.revision = 1;
   await p.poll();
-  assert.equal(p.get("schedule-on").value, "20:00");
+  assert.equal(p.dial.times.on, "20:00");
   p.get("schedule-enabled").checked = true;
   await p.get("schedule-enabled").change();
-  assert.equal(p.get("schedule-on").value, "19:00");
+  assert.equal(p.dial.times.on, "19:00");
   assert.equal(p.server.enabled, false);
   assert.match(p.get("schedule-feedback").textContent, /其他设备/);
 });

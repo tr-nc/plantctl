@@ -63,7 +63,7 @@ header {
 }
 main {
   max-width: 1120px;
-  margin: 64px auto;
+  margin: 48px auto;
 }
 h1 {
   font-size: 28px;
@@ -88,10 +88,13 @@ h1 {
   background: #1a2019;
   border-radius: 24px;
   display: grid;
-  grid-template-columns: 1fr 1.15fr;
+  grid-template-columns: 1fr 1fr;
   overflow: hidden;
 }
 .illustration {
+  grid-column: 1;
+  grid-row: 1;
+  height: 250px;
   background: radial-gradient(
     ellipse at 50% 35%,
     #293522 0%,
@@ -101,137 +104,13 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-right: 1px solid #30382c;
-}
-.illustration svg {
-  width: 100%;
-  max-width: 420px;
-  height: auto;
-}
-.controls {
-  padding: 42px;
-}
-.device-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-h2 {
-  font-size: 21px;
-  font-weight: 500;
-  margin: 0;
-}
-.badge {
-  white-space: nowrap;
-  color: #b4bdab;
-  font-size: 12px;
-  border: 1px solid #414c38;
-  border-radius: 20px;
-  padding: 6px 10px;
-}
-.badge.online {
-  color: var(--accent);
-  background: #2e3e25;
-  border-color: #455b34;
-}
-.reading {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  margin: 38px 0 30px;
-}
-.reading strong {
-  font-size: 64px;
-  font-weight: 400;
-  letter-spacing: -3px;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-.reading span {
-  color: var(--muted);
-  font-size: 16px;
-}
-.metrics {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  border-top: 1px solid #343c2e;
-  border-bottom: 1px solid #343c2e;
-  padding: 22px 0;
-}
-.metrics div + div {
-  padding-left: 24px;
-  border-left: 1px solid #343c2e;
-}
-.metrics span {
-  display: block;
-  font-size: 12px;
-  color: var(--muted);
-  margin-bottom: 9px;
-}
-.metrics strong {
-  font-size: 19px;
-  font-weight: 400;
-  font-variant-numeric: tabular-nums;
-}
-.actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 30px;
-}
-.actions button {
-  flex: 1;
-  color: #17220f;
-  background: var(--accent);
-  border: 1px solid var(--accent);
-  border-radius: 12px;
-  padding: 15px;
-  font-size: 15px;
-  font-weight: 600;
-  transition: background 0.15s;
-}
-.actions button:hover:not(:disabled) {
-  background: #d3efb8;
-}
-.actions .secondary {
-  background: #293123;
-  color: #e3e9db;
-  border-color: #46523b;
-}
-.actions .secondary:hover:not(:disabled) {
-  background: #38452f;
-}
-.status-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 15px;
-  min-height: 44px;
-}
-#feedback {
-  margin: 0;
-  font-size: 12px;
-  color: var(--muted);
-  line-height: 1.7;
-}
-.refresh {
-  flex-shrink: 0;
-  width: 44px;
-  height: 44px;
-  border: 1px solid #3e4935;
-  border-radius: 10px;
-  color: #c0cbb4;
-  background: transparent;
-  font-size: 24px;
-}
-.refresh:hover:not(:disabled) {
-  background: #2c3725;
-}
-.illustration {
+  overflow: hidden;
   transition: background 0.35s;
 }
 .illustration svg {
+  width: 290px;
+  height: auto;
+  flex-shrink: 0;
   transition:
     filter 0.35s,
     opacity 0.35s;
@@ -263,19 +142,121 @@ h2 {
   filter: grayscale(1);
   opacity: 0.45;
 }
-.schedule {
+.controls {
+  grid-column: 1;
+  grid-row: 2;
+  padding: 30px 38px 34px;
+}
+.device-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+h2 {
+  font-size: 21px;
+  font-weight: 500;
+  margin: 0;
+}
+.badge {
+  white-space: nowrap;
+  color: #b4bdab;
+  font-size: 12px;
+  border: 1px solid #414c38;
+  border-radius: 20px;
+  padding: 6px 10px;
+}
+.badge.online {
+  color: var(--accent);
+  background: #2e3e25;
+  border-color: #455b34;
+}
+.reading {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 28px 0;
+}
+.reading strong {
+  font-size: 58px;
+  font-weight: 400;
+  letter-spacing: -3px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.reading span {
+  color: var(--muted);
+  font-size: 16px;
+}
+.metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   border-top: 1px solid #343c2e;
-  margin-top: 22px;
-  padding-top: 24px;
+  border-bottom: 1px solid #343c2e;
+  padding: 20px 0;
+}
+.metrics div + div {
+  padding-left: 24px;
+  border-left: 1px solid #343c2e;
+}
+.metrics span {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 9px;
+}
+.metrics strong {
+  font-size: 19px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+.actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 26px;
+}
+.actions button {
+  flex: 1;
+  color: #17220f;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  padding: 15px;
+  font-size: 15px;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+.actions button:hover:not(:disabled) {
+  background: #d3efb8;
+}
+.actions .secondary {
+  background: #293123;
+  color: #e3e9db;
+  border-color: #46523b;
+}
+.actions .secondary:hover:not(:disabled) {
+  background: #38452f;
+}
+#feedback {
+  margin: 15px 0 0;
+  font-size: 12px;
+  color: #dccba6;
+  line-height: 1.7;
+}
+.schedule {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  border-left: 1px solid #343c2e;
+  padding: 32px 38px;
 }
 .schedule-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 22px;
+  margin-bottom: 20px;
 }
 .schedule-heading > label {
-  font-size: 15px;
+  font-size: 19px;
 }
 .switch {
   position: relative;
@@ -328,42 +309,131 @@ h2 {
 .switch input:disabled + span {
   opacity: 0.4;
 }
-.schedule-times {
-  display: grid;
-  grid-template-columns: 1fr 1fr auto;
-  gap: 12px;
-  align-items: end;
+.dial {
+  position: relative;
+  width: min(100%, 340px);
+  aspect-ratio: 1;
+  margin: 24px auto;
+  touch-action: none;
+  user-select: none;
 }
-.schedule-times label {
+.dial svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+.dial-track {
+  fill: none;
+  stroke: #343e2e;
+  stroke-width: 22;
+}
+.dial-arc {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 22;
+  stroke-linecap: round;
+}
+.dial-ticks {
+  stroke: #7b876e;
+  stroke-width: 1;
+}
+.dial text {
+  fill: #b0bba4;
+  text-anchor: middle;
+  font-size: 11px;
+}
+.dial-centre {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  gap: 10px;
+}
+.dial-centre span {
   font-size: 12px;
   color: var(--muted);
-  min-width: 0;
 }
-.schedule-times input {
-  display: block;
-  width: 100%;
-  min-width: 0;
-  margin-top: 9px;
-  padding: 12px 10px;
-  height: 46px;
-  color: #edf0e8;
-  background: #20281c;
+.dial-duration {
+  font-size: 29px;
+  font-weight: 450;
+  font-variant-numeric: tabular-nums;
+}
+.dial-handle {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  border: 5px solid #1a2019;
+  font-size: 12px;
+  font-weight: 650;
+  z-index: 2;
+  touch-action: none;
+}
+.dial-handle.on {
+  background: #d4f2b5;
+  color: #182710;
+}
+.dial-handle.off {
+  background: #667a51;
+  color: white;
+}
+.dial-handle.selected {
+  z-index: 3;
+  box-shadow: 0 0 0 2px #e3f3cf;
+}
+.dial-handle:disabled {
+  opacity: 1;
+  filter: grayscale(0.7);
+}
+.dial[aria-disabled="true"] {
+  opacity: 0.55;
+}
+.dial-values {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.dial-values button {
+  padding: 12px;
+  min-height: 65px;
   border: 1px solid #46523b;
-  border-radius: 9px;
-  font: inherit;
-  font-size: 16px;
+  border-radius: 12px;
+  background: #20281c;
+  color: #edf0e8;
 }
-.schedule-times input:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+.dial-values button[aria-pressed="true"] {
+  border-color: #bad895;
+  background: #293821;
 }
-.schedule-times button {
-  height: 46px;
-  padding: 0 14px;
+.dial-values span {
+  display: block;
+  font-size: 11px;
+  color: #b5bfab;
+  margin-bottom: 6px;
+}
+.dial-values strong {
+  font-size: 23px;
+  font-weight: 450;
+  font-variant-numeric: tabular-nums;
+}
+#schedule-save {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 16px;
+  padding: 12px;
   background: #293123;
   color: #e3e9db;
   border: 1px solid #46523b;
-  border-radius: 9px;
+  border-radius: 10px;
+}
+#schedule-save:not(:disabled):hover {
+  background: #38452f;
 }
 #schedule-feedback,
 .schedule-hint {
@@ -388,16 +458,10 @@ h2 {
 }
 @media (max-width: 1200px) {
   main {
-    margin: 48px 40px;
+    margin: 40px;
   }
 }
 @media (max-width: 760px) {
-  .schedule-times {
-    grid-template-columns: 1fr 1fr;
-  }
-  .schedule-times button {
-    grid-column: 1 / -1;
-  }
   header {
     padding: 22px 24px;
   }
@@ -413,28 +477,28 @@ h2 {
     border-radius: 20px;
   }
   .illustration {
-    height: 220px;
-    border-right: 0;
-    border-bottom: 1px solid #30382c;
-    overflow: hidden;
+    height: 200px;
   }
   .illustration svg {
-    width: 260px;
-    flex-shrink: 0;
+    width: 245px;
   }
   .controls {
-    padding: 26px 24px 20px;
+    padding: 26px 24px;
   }
   h2 {
     font-size: 19px;
   }
-  .reading {
-    margin: 30px 0 26px;
-  }
   .reading strong {
-    font-size: 56px;
+    font-size: 54px;
   }
-  .actions {
-    margin-top: 24px;
+  .schedule {
+    grid-column: 1;
+    grid-row: 3;
+    border-left: 0;
+    border-top: 1px solid #343c2e;
+    padding: 26px 24px;
+  }
+  .dial {
+    margin: 20px auto;
   }
 }
