@@ -18,6 +18,10 @@ from paho.mqtt.enums import CallbackAPIVersion
 from controller.schedule import ZONE, ConflictError, Scheduler
 
 LOG = logging.getLogger("plantctl-scheduler")
+QUERY_INTERVAL = 3
+STATE_MAX_AGE = 12
+QUERY_TIMEOUT = 12
+QUERY_RETRY_DELAY = 15
 
 
 class MQTTGateway:
@@ -28,6 +32,7 @@ class MQTTGateway:
         self.report: dict = {}
         self.last_report: float | None = None
         self.next_query = 0.0
+        self.pending_query: float | None = None
         self.sequence = 0
         self.instance = uuid4().hex
         self.client = mqtt.Client(
@@ -47,6 +52,7 @@ class MQTTGateway:
         with self.status_lock:
             self.last_report = None
             self.next_query = 0.0
+            self.pending_query = None
         if reason_code == 0:
             client.subscribe(
                 [("zigbee2mqtt/bridge/state", 1), ("zigbee2mqtt/plant-light", 0)]
@@ -67,6 +73,7 @@ class MQTTGateway:
                 if not self.ready.is_set():
                     with self.status_lock:
                         self.next_query = 0.0
+                        self.pending_query = None
                 self.ready.set()
             else:
                 self.ready.clear()
@@ -83,6 +90,10 @@ class MQTTGateway:
                 )
                 if data.get("state") in ("ON", "OFF"):
                     self.last_report = self.clock()
+                    self.pending_query = None
+                    self.next_query = min(
+                        self.next_query, self.clock() + QUERY_INTERVAL
+                    )
                     self.sequence += 1
 
     def poll(self) -> None:
@@ -91,7 +102,16 @@ class MQTTGateway:
             now = self.clock()
             if not self.online or now < self.next_query:
                 return
-            self.next_query = now + 30
+            if self.pending_query is not None:
+                if now - self.pending_query < QUERY_TIMEOUT:
+                    return
+                # Avoid building an ever-growing Zigbee read queue while the
+                # plug is offline. Recovery reports restore the fast cadence.
+                self.pending_query = None
+                self.next_query = now + QUERY_RETRY_DELAY
+                return
+            self.pending_query = now
+            self.next_query = now + QUERY_INTERVAL
         self.client.publish(
             "zigbee2mqtt/plant-light/get", '{"state":""}', qos=0, retain=False
         )
@@ -101,7 +121,7 @@ class MQTTGateway:
             fresh = (
                 self.online
                 and self.last_report is not None
-                and self.clock() - self.last_report < 90
+                and self.clock() - self.last_report < STATE_MAX_AGE
             )
             return {
                 "gateway_online": self.online,
@@ -206,6 +226,9 @@ def make_server(
                 self.respond(200, result)
 
         def log_message(self, format: str, *args) -> None:
+            # Frequent read-only snapshots should not generate disk log churn.
+            if self.command == "GET" and len(args) > 1 and str(args[1]) == "200":
+                return
             LOG.info(format, *args)
 
     return ThreadingHTTPServer(("127.0.0.1", port), Handler)

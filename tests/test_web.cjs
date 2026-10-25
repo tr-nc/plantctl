@@ -8,7 +8,8 @@ function page() {
     timers = new Map(),
     sockets = [];
   let id = 0,
-    poll;
+    poll,
+    interval;
   const status = {
     gateway_online: true,
     automatic_enabled: false,
@@ -50,7 +51,13 @@ function page() {
     return elements.get(name);
   };
   vm.runInNewContext(fs.readFileSync("web/app.js", "utf8"), {
-    document: { getElementById: get },
+    document: {
+      getElementById: get,
+      visibilityState: "visible",
+      addEventListener(name, fn) {
+        listeners.set("document:" + name, fn);
+      },
+    },
     window: {
       addEventListener(name, callback) {
         listeners.set(name, callback);
@@ -66,8 +73,9 @@ function page() {
     clearTimeout(i) {
       timers.delete(i);
     },
-    setInterval(fn) {
+    setInterval(fn, delay) {
       poll = fn;
+      interval = delay;
     },
     async fetch(url, options) {
       if (url === "/manual") {
@@ -96,6 +104,8 @@ function page() {
     status,
     network,
     poll: () => poll(),
+    interval: () => interval,
+    visible: () => listeners.get("document:visibilitychange")(),
     mode: (detail) => listeners.get("plantctl:schedule")({ detail }),
   };
 }
@@ -208,6 +218,41 @@ test("stale-page manual requests are rejected by the server without dispatch", a
   assert.equal(p.sockets[0].sent.length, 0);
   assert.equal(p.get("on").disabled, true);
   assert.match(p.get("feedback").textContent, /关闭自动/);
+});
+test("unsolicited physical state changes are reflected in both modes without sending a command", async () => {
+  for (const automatic of [false, true]) {
+    const p = page();
+    p.status.automatic_enabled = automatic;
+    await settle();
+    const ws = p.sockets[0];
+    ws.receive("bridge/state");
+    await settle();
+    p.status.report = { state: "ON", power: 23 };
+    p.status.version = "boot:2";
+    ws.receive("plant-light");
+    await settle();
+    assert.equal(p.get("device-visual").dataset.state, "on");
+    assert.equal(p.get("state-badge").textContent, "已开启");
+    assert.equal(p.network.manual.length, 0);
+    assert.equal(ws.sent.length, 0);
+    p.status.report = { state: "OFF", power: 0 };
+    p.status.version = "boot:3";
+    await p.poll();
+    assert.equal(p.get("device-visual").dataset.state, "off");
+    assert.equal(p.interval(), 1000);
+  }
+});
+test("returning to a visible page discards the old view and immediately reads actual state", async () => {
+  const p = page();
+  await settle();
+  p.sockets[0].receive("bridge/state");
+  await settle();
+  p.status.report = { state: "ON" };
+  p.status.version = "boot:2";
+  p.visible();
+  assert.equal(p.get("device-visual").dataset.state, "unknown");
+  await settle();
+  assert.equal(p.get("device-visual").dataset.state, "on");
 });
 test("upstream configuration errors disable controls and retry", async () => {
   const p = page();

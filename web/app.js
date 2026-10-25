@@ -207,4 +207,12 @@ $("on").onclick = () => send("ON");
 $("off").onclick = () => send("OFF");
 connect();
 loadHealth();
-setInterval(loadHealth, 5000);
+setInterval(loadHealth, 1000);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    health = null;
+    render();
+    loadHealth();
+  }
+});
+window.addEventListener("pageshow", loadHealth);
