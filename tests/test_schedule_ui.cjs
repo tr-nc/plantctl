@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const vm = require("node:vm");
 const fs = require("node:fs");
 const settle = () => new Promise((resolve) => setImmediate(resolve));
-function page() {
+function page(enabled = false) {
   const nodes = new Map(),
     requests = [];
   let poll, dial;
@@ -20,12 +20,13 @@ function page() {
       this.disabled = value;
     }
     edit(edge, value) {
+      if (this.disabled) return;
       this.times[edge] = value;
       this.onChange();
     }
   }
   const server = {
-    enabled: false,
+    enabled,
     on: "08:00",
     off: "22:00",
     revision: 0,
@@ -41,6 +42,7 @@ function page() {
         checked: false,
         disabled: false,
         textContent: "",
+        dataset: {},
         addEventListener(event, fn) {
           this[event] = fn;
         },
@@ -93,9 +95,15 @@ test("loads persisted settings without writing; toggle saves immediately", async
   assert.equal(p.dial.times.on, "08:00");
   assert.equal(p.get("schedule-enabled").checked, false);
   assert.equal(p.requests.length, 1);
+  assert.equal(p.dial.disabled, true);
+  assert.equal(p.get("schedule-editor").dataset.disabled, "true");
+  p.dial.edit("on", "09:00");
+  assert.equal(p.dial.times.on, "08:00");
   p.get("schedule-enabled").checked = true;
   await p.get("schedule-enabled").change();
   assert.equal(p.server.enabled, true);
+  assert.equal(p.dial.disabled, false);
+  assert.equal(p.get("schedule-mode").textContent, "已开启");
   assert.equal(p.server.revision, 1);
   assert.deepEqual(JSON.parse(p.requests[1].body), {
     enabled: true,
@@ -105,12 +113,12 @@ test("loads persisted settings without writing; toggle saves immediately", async
   });
 });
 test("equal times are rejected, drafts survive polling, conflicts reload explicitly", async () => {
-  const p = page();
+  const p = page(true);
   await settle();
   p.dial.edit("on", "22:00");
   p.get("schedule-enabled").checked = true;
   await p.get("schedule-enabled").change();
-  assert.equal(p.server.enabled, false);
+  assert.equal(p.server.enabled, true);
   assert.match(p.get("schedule-feedback").textContent, /不能相同/);
   p.dial.edit("on", "20:00");
   p.server.on = "19:00";
@@ -120,8 +128,27 @@ test("equal times are rejected, drafts survive polling, conflicts reload explici
   p.get("schedule-enabled").checked = true;
   await p.get("schedule-enabled").change();
   assert.equal(p.dial.times.on, "19:00");
-  assert.equal(p.server.enabled, false);
+  assert.equal(p.server.enabled, true);
   assert.match(p.get("schedule-feedback").textContent, /其他设备/);
+});
+test("turning off locks editing and saving; remote disable discards stale drafts", async () => {
+  const p = page(true);
+  await settle();
+  p.get("schedule-enabled").checked = false;
+  await p.get("schedule-enabled").change();
+  assert.equal(p.dial.disabled, true);
+  assert.equal(p.get("schedule-save").disabled, true);
+  assert.equal(p.get("schedule-enabled").disabled, false);
+  assert.equal(p.get("schedule-mode").textContent, "已关闭");
+  p.get("schedule-enabled").checked = true;
+  await p.get("schedule-enabled").change();
+  p.dial.edit("on", "09:00");
+  p.server.enabled = false;
+  p.server.revision++;
+  await p.poll();
+  assert.equal(p.dial.disabled, true);
+  assert.equal(p.get("schedule-enabled").checked, false);
+  assert.equal(p.dial.times.on, "08:00");
 });
 test("failed saves are not shown as enabled; connectivity loss disables editing", async () => {
   const p = page();

@@ -16,21 +16,30 @@ function dirty() {
 }
 function controls() {
   el("schedule-enabled").disabled = busy || !available;
-  dial.setDisabled(busy || !available);
-  el("schedule-save").disabled = busy || !available || !dirty();
+  const disabled = busy || !available || !saved?.enabled;
+  dial.setDisabled(disabled);
+  el("schedule-editor").dataset.disabled = String(disabled);
+  el("schedule-mode").textContent = busy
+    ? "保存中"
+    : !available
+      ? "未连接"
+      : saved?.enabled
+        ? "已开启"
+        : "已关闭";
+  el("schedule-save").disabled = disabled || !dirty();
 }
 function note(text) {
   el("schedule-feedback").textContent = text;
 }
 function show(data, force = false) {
-  if (dial.drag && !force) return;
-  const preserveDraft = dirty() && !force;
+  if (dial.drag && !force && data.enabled) return;
+  const preserveDraft = dirty() && !force && data.enabled;
   if (!preserveDraft) {
     saved = data;
     el("schedule-enabled").checked = data.enabled;
     dial.setRange(data.on, data.off);
   }
-  if (!data.enabled) note("每天 · 北京时间");
+  if (!data.enabled) note("开启自动开关后可调整时间。");
   else if (!data.clock_ready) note("等待系统校时，暂不执行。");
   else if (!data.gateway_online) note("网关离线，恢复后按当前时段执行。");
   else if (data.next) {
@@ -125,7 +134,7 @@ async function save() {
 }
 el("schedule-form").addEventListener("submit", (event) => {
   event.preventDefault();
-  save();
+  if (saved?.enabled) save();
 });
 el("schedule-enabled").addEventListener("change", save);
 controls();

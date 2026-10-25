@@ -98,10 +98,16 @@ export class ScheduleDial {
     return { on: toTime(this.values.on), off: toTime(this.values.off) };
   }
   setRange(on, off) {
+    this.drag = null;
     this.values = { on: toMinutes(on), off: toMinutes(off) };
     this.render();
   }
   setDisabled(disabled) {
+    if (disabled && this.drag) {
+      this.values = this.drag.original;
+      this.drag = null;
+      this.render();
+    }
     this.disabled = disabled;
     this.root.setAttribute("aria-disabled", String(disabled));
     for (const edge of ["on", "off"])

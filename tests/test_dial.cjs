@@ -123,7 +123,14 @@ test("drag previews, pointer cancellation rolls back, track taps and keyboard ne
   assert.equal(dial.times.off, "20:00");
   nodes.off.events.keydown({ key: "ArrowRight", preventDefault() {} });
   assert.equal(dial.times.off, "20:30");
+  dial.start(event(630));
+  dial.move(event(690));
   dial.setDisabled(true);
+  assert.equal(dial.times.on, "10:30");
   dial.start(event(60));
+  nodes.on.events.keydown({ key: "ArrowRight", preventDefault() {} });
+  assert.equal(dial.times.on, "10:30");
+  assert.equal(nodes.on.disabled, true);
+  assert.equal(nodes["pick-on"].disabled, true);
   assert.equal(dial.drag, null);
 });

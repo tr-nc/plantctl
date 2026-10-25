@@ -74,15 +74,6 @@ h1 {
   gap: 14px;
   margin: 0 0 28px;
 }
-.count {
-  font-size: 12px;
-  color: var(--muted);
-  border: 1px solid #343d30;
-  border-radius: 7px;
-  padding: 4px 7px;
-  font-weight: 400;
-  letter-spacing: 0;
-}
 .device {
   border: 1px solid #30382c;
   background: #1a2019;
@@ -257,6 +248,30 @@ h2 {
 }
 .schedule-heading > label {
   font-size: 19px;
+  margin-right: auto;
+}
+.schedule-mode {
+  color: var(--muted);
+  font-size: 12px;
+  margin-right: 12px;
+}
+.schedule-editor {
+  transition:
+    opacity 0.2s,
+    filter 0.2s;
+}
+.schedule-editor[data-disabled="true"] {
+  opacity: 0.4;
+  filter: grayscale(1);
+}
+.schedule-editor[data-disabled="true"] .dial,
+.schedule-editor[data-disabled="true"] button:disabled {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .schedule-editor {
+    transition: none;
+  }
 }
 .switch {
   position: relative;
