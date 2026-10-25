@@ -1,6 +1,5 @@
 const $ = (id) => document.getElementById(id);
 let socket,
-  token = "",
   retry,
   deadline,
   pending = null,
@@ -8,11 +7,6 @@ let socket,
   bridgeOnline = false;
 let report = {};
 const device = "plant-light";
-$("date").textContent = new Intl.DateTimeFormat("zh-CN", {
-  month: "long",
-  day: "numeric",
-  weekday: "long",
-}).format(new Date());
 function feedback(text) {
   $("feedback").textContent = text;
 }
@@ -20,7 +14,7 @@ function render() {
   const connected = authenticated && socket?.readyState === WebSocket.OPEN;
   const ready = connected && bridgeOnline;
   $("connection").textContent = ready
-    ? "● 网关已连接"
+    ? "● 已连接"
     : connected
       ? "网关离线"
       : "未连接";
@@ -30,9 +24,9 @@ function render() {
   $("state-badge").textContent = !ready
     ? "状态待确认"
     : report.state === "ON"
-      ? "最近上报 · 已开启"
+      ? "已开启"
       : report.state === "OFF"
-        ? "最近上报 · 已关闭"
+        ? "已关闭"
         : "状态未知";
   $("state-badge").classList.toggle("online", ready && report.state === "ON");
   $("power").textContent =
@@ -53,7 +47,7 @@ function connect() {
   report = {};
   render();
   const ws = new WebSocket(
-    `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api?token=${encodeURIComponent(token)}`,
+    `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api`,
   );
   socket = ws;
   const authTimeout = setTimeout(() => {
@@ -68,14 +62,11 @@ function connect() {
       return;
     }
     if (!message || typeof message.topic !== "string") return;
-    // A successful upgrade alone is NOT authentication: only protected data proves it.
+    // The proxy authenticates upstream; wait for gateway data, not just an upgrade.
     if (!authenticated) {
       authenticated = true;
       clearTimeout(authTimeout);
-      $("login").hidden = true;
-      $("logout").hidden = false;
-      $("password").value = "";
-      feedback("已连接。显示最近上报值；可点击查询获取新状态。");
+      feedback("最近上报");
     }
     const { topic, payload } = message;
     if (topic === "bridge/state") bridgeOnline = payload?.state === "online";
@@ -88,14 +79,12 @@ function connect() {
           : pending === payload.state)
       ) {
         clearPending();
-        feedback(
-          `收到设备状态：${payload.state === "ON" ? "已开启" : "已关闭"} · ${new Date().toLocaleTimeString("zh-CN")}`,
-        );
+        feedback(`已更新 · ${new Date().toLocaleTimeString("zh-CN")}`);
       }
     }
     if (!bridgeOnline && pending) {
       clearPending();
-      feedback("网关已离线，操作结果未确认，请恢复连接后查询。");
+      feedback("网关离线，操作结果待确认。");
     }
     render();
   };
@@ -106,18 +95,15 @@ function connect() {
     bridgeOnline = false;
     clearPending();
     render();
-    if (event.code === 4401) {
-      token = "";
-      $("login").hidden = false;
-      $("logout").hidden = true;
-      feedback("网页访问密码不正确，请重新输入。");
-    } else if (token) {
-      feedback("连接已中断，操作结果未确认；正在重连，不会自动重发开关指令。");
-      retry = setTimeout(connect, 4000);
-    }
+    feedback(
+      event.code === 4401
+        ? "网关配置异常，正在重试。"
+        : "连接中断，正在重连。操作结果待确认。",
+    );
+    retry = setTimeout(connect, 4000);
   };
   ws.onerror = () => {
-    /* close handles retry; never display a URL containing the token */
+    /* close handles retry */
   };
 }
 function send(state) {
@@ -135,47 +121,16 @@ function send(state) {
       payload: { state: state === "QUERY" ? "" : state },
     }),
   );
-  feedback(
-    state === "QUERY"
-      ? "正在查询，等待设备上报…"
-      : "指令已发送，等待设备上报；尚未确认执行。",
-  );
+  feedback(state === "QUERY" ? "正在查询…" : "已发送，等待设备确认…");
   deadline = setTimeout(() => {
     clearPending();
-    feedback(
-      "暂未收到匹配的设备上报。请检查插座供电并查询状态；不会自动重发指令。",
-    );
+    feedback("暂未收到确认，请检查插座供电后刷新。");
     render();
   }, 12000);
   render();
 }
-$("login-form").addEventListener("submit", (event) => {
-  event.preventDefault();
-  clearTimeout(retry);
-  clearPending();
-  const old = socket;
-  socket = null;
-  old?.close();
-  token = $("password").value;
-  feedback("正在连接网关…");
-  connect();
-});
 $("on").onclick = () => send("ON");
 $("off").onclick = () => send("OFF");
 $("refresh").onclick = () => send("QUERY");
-$("logout").onclick = () => {
-  clearTimeout(retry);
-  clearPending();
-  token = "";
-  authenticated = false;
-  bridgeOnline = false;
-  const old = socket;
-  socket = null;
-  old?.close();
-  report = {};
-  $("login").hidden = false;
-  $("logout").hidden = true;
-  feedback("已断开连接，设备的开关状态不会因此改变。");
-  render();
-};
-render();
+feedback("正在连接…");
+connect();

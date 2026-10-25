@@ -30,14 +30,9 @@ function page() {
   const get = (id) => {
     if (!elements.has(id))
       elements.set(id, {
-        value: "",
         textContent: "",
-        hidden: false,
         disabled: false,
         classList: { toggle() {} },
-        addEventListener(event, fn) {
-          this[event] = fn;
-        },
       });
     return elements.get(id);
   };
@@ -45,7 +40,6 @@ function page() {
     document: { getElementById: get },
     location: { protocol: "http:", host: "192.168.50.102" },
     WebSocket: Socket,
-    Intl,
     Date,
     setTimeout(fn, delay) {
       const id = ++nextTimer;
@@ -56,25 +50,25 @@ function page() {
       timers.delete(id);
     },
   });
-  const login = () => {
-    get("password").value = "test-secret";
-    get("login-form").submit({ preventDefault() {} });
-    return sockets.at(-1);
-  };
-  return { get, login, sockets, timers };
+  return { get, sockets, timers };
 }
-test("controls require protected data, not just a WebSocket upgrade", () => {
+test("opens automatically without credentials; controls wait for gateway data", () => {
   const p = page(),
-    ws = p.login();
+    ws = p.sockets[0];
+  assert.equal(p.sockets.length, 1);
+  assert.equal(ws.url, "ws://192.168.50.102/api");
   assert.equal(p.get("on").disabled, true);
   assert.equal(ws.sent.length, 0);
   ws.receive("bridge/state", { state: "online" });
   assert.equal(p.get("on").disabled, false);
-  assert.equal(p.get("password").value, "");
+  assert.doesNotMatch(
+    fs.readFileSync("web/index.html", "utf8"),
+    /type="password"|login-form/,
+  );
 });
-test("explicit commands are unretained, pending until matching report; never optimistic", () => {
+test("explicit commands wait for matching state and never update optimistically", () => {
   const p = page(),
-    ws = p.login();
+    ws = p.sockets[0];
   ws.receive("bridge/state", { state: "online" });
   ws.receive("plant-light", { state: "OFF", power: 0 });
   p.get("on").onclick();
@@ -87,11 +81,16 @@ test("explicit commands are unretained, pending until matching report; never opt
   assert.equal(p.get("off").disabled, true);
   ws.receive("plant-light", { state: "ON" });
   assert.equal(p.get("off").disabled, false);
-  assert.match(p.get("feedback").textContent, /收到设备状态/);
+  assert.match(p.get("feedback").textContent, /已更新/);
+  p.get("off").onclick();
+  assert.deepEqual(ws.sent[1], {
+    topic: "plant-light/set",
+    payload: { state: "OFF" },
+  });
 });
 test("query, timeout, offline and reconnection do not replay commands", () => {
   const p = page(),
-    ws = p.login();
+    ws = p.sockets[0];
   ws.receive("bridge/state", { state: "online" });
   p.get("refresh").onclick();
   assert.deepEqual(ws.sent[0], {
@@ -105,23 +104,16 @@ test("query, timeout, offline and reconnection do not replay commands", () => {
   ws.close();
   [...p.timers.values()].find((t) => t.delay === 4000).fn();
   assert.equal(p.sockets.length, 2);
+  assert.equal(p.sockets[1].url, "ws://192.168.50.102/api");
   assert.equal(p.sockets[1].sent.length, 0);
 });
-test("bad password restores login; logout discards state and cancels retries", () => {
+test("upstream credential failure disables controls and retries without asking for a password", () => {
   const p = page(),
-    ws = p.login();
+    ws = p.sockets[0];
   ws.onclose({ code: 4401 });
-  assert.equal(p.get("login").hidden, false);
   assert.equal(p.get("on").disabled, true);
-  assert.equal(
-    [...p.timers.values()].filter((t) => t.delay === 4000).length,
-    0,
-  );
-  const good = p.login();
-  good.receive("bridge/state", { state: "online" });
-  good.receive("plant-light", { state: "ON", power: 42 });
-  p.get("logout").onclick();
-  assert.equal(p.get("power").textContent, "—");
-  assert.equal(p.get("on").disabled, true);
-  assert.equal(p.timers.size, 0);
+  assert.match(p.get("feedback").textContent, /配置异常/);
+  [...p.timers.values()].find((t) => t.delay === 4000).fn();
+  assert.equal(p.sockets.length, 2);
+  assert.equal(p.sockets[1].sent.length, 0);
 });

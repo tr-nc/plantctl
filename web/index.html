@@ -3,95 +3,97 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <meta name="color-scheme" content="light" />
-    <title>Plantctl · 生长之间</title>
+    <meta name="color-scheme" content="dark" />
+    <title>Plantctl</title>
     <link rel="stylesheet" href="/style.css" />
     <script type="module" src="/app.js"></script>
   </head>
   <body>
     <header>
       <a class="brand" href="/" aria-label="Plantctl 首页"
-        ><span class="brand-icon">✳</span> plantctl<span class="brand-sub"
-          >生长之间</span
-        ></a
-      ><span class="local">LOCAL GARDEN / 局域网控制</span>
+        ><span aria-hidden="true">✳</span> plantctl</a
+      >
+      <span id="connection" class="connection" role="status">连接中</span>
     </header>
     <main>
-      <section class="intro">
-        <div>
-          <p class="eyebrow">A LITTLE LIGHT, A LITTLE GROWTH</p>
-          <h1>把日常，交给一点光。</h1>
-          <p class="subtitle">你的植物角落，一眼可见，一触可控。</p>
+      <h1>我的设备<span class="count">01</span></h1>
+      <article class="device" aria-labelledby="device-name">
+        <div class="illustration" aria-hidden="true">
+          <svg viewBox="0 0 400 400" fill="none">
+            <defs>
+              <linearGradient
+                id="beam"
+                x1="200"
+                y1="80"
+                x2="200"
+                y2="340"
+                gradientUnits="userSpaceOnUse"
+              >
+                <stop stop-color="#b9db8b" stop-opacity=".18" />
+                <stop offset="1" stop-color="#b9db8b" stop-opacity="0" />
+              </linearGradient>
+              <linearGradient
+                id="pot"
+                x1="150"
+                y1="280"
+                x2="250"
+                y2="340"
+                gradientUnits="userSpaceOnUse"
+              >
+                <stop stop-color="#525a4e" />
+                <stop offset="1" stop-color="#30382e" />
+              </linearGradient>
+            </defs>
+            <path d="M150 83L66 342H334L250 83Z" fill="url(#beam)" />
+            <path d="M200 0V59" stroke="#606958" stroke-width="2" />
+            <path d="M163 61H237L255 82H145Z" fill="#69785a" />
+            <rect x="145" y="81" width="110" height="4" rx="2" fill="#d0e9ab" />
+            <ellipse
+              cx="200"
+              cy="343"
+              rx="81"
+              ry="9"
+              fill="#080c08"
+              fill-opacity=".5"
+            />
+            <path
+              d="M200 289Q198 220 230 159M202 265Q180 213 149 199M202 251Q229 220 269 223"
+              stroke="#748a5c"
+              stroke-width="4"
+            />
+            <path
+              d="M217 192Q201 145 250 127Q264 172 217 192Z"
+              fill="#8baf68"
+            />
+            <path
+              d="M190 244Q144 244 129 195Q178 190 190 244Z"
+              fill="#587d4d"
+            />
+            <path
+              d="M211 250Q230 204 278 217Q264 260 211 250Z"
+              fill="#76965b"
+            />
+            <path
+              d="M203 222Q170 204 175 166Q213 172 203 222Z"
+              fill="#465f3b"
+            />
+            <path d="M156 286H245L232 337H169Z" fill="url(#pot)" />
+            <rect
+              x="151"
+              y="279"
+              width="99"
+              height="12"
+              rx="3"
+              fill="#626d57"
+            />
+          </svg>
         </div>
-        <div class="date" id="date"></div>
-      </section>
-      <section class="garden">
-        <div class="garden-copy">
-          <span class="tag">MY GARDEN · 01</span>
-          <h2>让生长，<br />从容发生。</h2>
-          <p>光照由你掌握。<br />在同一个 Wi-Fi 下，随时照看你的植物。</p>
-          <span class="garden-note">ORANGE PI × ZIGBEE</span>
-        </div>
-        <svg
-          class="plant"
-          viewBox="0 0 380 330"
-          role="img"
-          aria-label="阳光下的绿叶盆栽插画"
-        >
-          <circle cx="264" cy="100" r="64" fill="#e9cd7d" />
-          <ellipse cx="193" cy="302" rx="122" ry="13" fill="#173e3320" />
-          <path
-            d="M192 247Q200 131 249 67M192 234Q169 153 116 103M193 207Q217 158 298 152"
-            fill="none"
-            stroke="#395a3d"
-            stroke-width="6"
-          />
-          <path d="M231 105Q195 44 275 29Q284 83 231 105" fill="#3d6848" />
-          <path d="M174 185Q105 185 88 110Q161 108 174 185" fill="#6e8c58" />
-          <path d="M211 184Q222 114 308 136Q280 195 211 184" fill="#38664b" />
-          <path d="M200 152Q147 136 156 69Q216 86 200 152" fill="#8a9d65" />
-          <path d="M137 230H248L230 296H155Z" fill="#bf7859" />
-          <path d="M132 223H253V238H132Z" fill="#d59270" />
-        </svg>
-      </section>
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">DEVICE CONTROL</p>
-          <h2>我的设备</h2>
-        </div>
-        <span id="connection" class="badge" role="status">未连接</span>
-      </div>
-      <section id="login" class="login">
-        <div>
-          <h3>连接你的植物角落</h3>
-          <p>
-            输入已有的 Zigbee 网页访问密码，不是 Wi-Fi
-            密码。密码仅保存在此标签页的内存中。
-          </p>
-        </div>
-        <form id="login-form">
-          <label class="sr-only" for="password">网页访问密码</label
-          ><input
-            id="password"
-            type="password"
-            autocomplete="current-password"
-            required
-            placeholder="网页访问密码"
-          /><button type="submit">连接设备 →</button>
-        </form>
-      </section>
-      <div class="device-grid">
-        <article class="device">
-          <div class="device-top">
-            <span class="lamp-icon" aria-hidden="true">☀</span
-            ><span id="state-badge" class="badge">状态未知</span>
+        <div class="controls">
+          <div class="device-heading">
+            <h2 id="device-name">植物补光灯</h2>
+            <span id="state-badge" class="badge">待确认</span>
           </div>
-          <h3>植物补光灯</h3>
-          <p class="device-id">plant-light <span>· Zigbee 智能插座</span></p>
-          <div class="reading">
-            <strong id="power">—</strong
-            ><span>W <small>最近上报功率</small></span>
-          </div>
+          <div class="reading"><strong id="power">—</strong><span>W</span></div>
           <div class="metrics">
             <div><span>电压</span><strong id="voltage">— V</strong></div>
             <div><span>累计用电</span><strong id="energy">— kWh</strong></div>
@@ -100,32 +102,20 @@
             <button id="on" disabled>开灯</button
             ><button id="off" class="secondary" disabled>关灯</button>
           </div>
-          <p id="feedback" class="feedback" role="status" aria-live="polite">
-            连接后显示设备最近上报的状态。
-          </p>
-          <button id="refresh" class="text-button" disabled>
-            ↻ 查询最新状态
-          </button>
-        </article>
-        <aside class="notes">
-          <span class="note-icon">↗</span>
-          <p class="eyebrow">SIMPLE BY DESIGN</p>
-          <h3>少一点操作，<br />多一点生机。</h3>
-          <p>这里先做好最重要的事：查看状态，随时开关。</p>
-          <div class="note-line"><span>即时控制</span><span>已提供</span></div>
-          <div class="note-line">
-            <span>定时与节假日规则</span><span>暂未启用</span>
+          <div class="status-row">
+            <p id="feedback" role="status" aria-live="polite">正在连接…</p>
+            <button
+              id="refresh"
+              class="refresh"
+              aria-label="刷新设备状态"
+              title="刷新设备状态"
+              disabled
+            >
+              ↻
+            </button>
           </div>
-          <p class="fine">
-            开关操作会直接控制插座上的负载。状态来自设备上报，不代表灯具本身的健康状态。
-          </p>
-        </aside>
-      </div>
-      <footer>
-        <span>plantctl · 为日常生长留一点空间</span
-        ><button id="logout" class="text-button" hidden>断开连接</button
-        ><span>本地运行 · 无需云端</span>
-      </footer>
+        </div>
+      </article>
     </main>
   </body>
 </html>

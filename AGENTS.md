@@ -3,7 +3,7 @@
 ## Local dashboard
 
 - Main dashboard: `http://192.168.50.102/` over Wi-Fi, or `http://192.168.50.101/` over Ethernet. Source: `web/`; deployment: `scripts/install-web.sh`; service: `plantctl-web`.
-- Uses the existing Zigbee2MQTT web password; never record credentials in Git. Original advanced UI remains on port 8080.
+- The dark dashboard is passwordless for trusted LAN clients and connects automatically. Its proxy loads the existing upstream token via systemd credentials; never serve/store that token in frontend assets or Git. Original advanced UI remains password-protected on port 8080, but the trusted-LAN proxy exposes the same gateway API (not a separate restricted authorization role).
 - Read `docs/web-dashboard.md` for architecture, security boundaries, validation and current scope. Calendar and scheduled automation are not implemented.
 - Test with `node --test tests/test_web.cjs`. Do not toggle real loads merely to test the UI without confirming that it is safe.
 

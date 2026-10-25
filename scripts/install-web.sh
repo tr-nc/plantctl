@@ -16,6 +16,25 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends nginx-
 install -d -m 0755 /opt/plantctl-web /etc/plantctl
 install -m 0644 "$SOURCE/index.html" "$SOURCE/app.js" "$SOURCE/style.css" /opt/plantctl-web/
 install -m 0644 "$SOURCE/nginx.conf" /etc/plantctl/web-nginx.conf
+# Keep upstream credentials on the host, outside the public document root.
+python3 - <<'PY'
+import os
+from pathlib import Path
+from urllib.parse import quote
+import yaml
+try:
+    config = yaml.safe_load(Path('/var/lib/plantctl/zigbee2mqtt/configuration.yaml').read_text())
+    token = config['frontend']['auth_token']
+    if not isinstance(token, str) or not token:
+        raise ValueError('missing token')
+except Exception:
+    raise SystemExit('Cannot load the existing gateway credential; details omitted.') from None
+path = Path('/etc/plantctl/web-upstream.conf')
+fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+os.fchmod(fd, 0o600)
+with os.fdopen(fd, 'w') as output:
+    output.write('proxy_pass http://127.0.0.1:8080/api?token=' + quote(token, safe='') + ';\n')
+PY
 printf '%s\n' plantctl.web > /etc/plantctl/web.owner
 cat > /etc/systemd/system/plantctl-web.service <<'UNIT'
 [Unit]
@@ -26,6 +45,7 @@ After=network.target plantctl-zigbee2mqtt.service
 Type=simple
 DynamicUser=yes
 RuntimeDirectory=plantctl-web
+LoadCredential=upstream.conf:/etc/plantctl/web-upstream.conf
 ExecStartPre=/usr/sbin/nginx -t -c /etc/plantctl/web-nginx.conf
 ExecStart=/usr/sbin/nginx -c /etc/plantctl/web-nginx.conf -g "daemon off;"
 ExecReload=/bin/kill -HUP $MAINPID
