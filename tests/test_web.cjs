@@ -11,11 +11,14 @@ function page() {
     poll;
   const status = {
     gateway_online: true,
+    automatic_enabled: false,
+    schedule_revision: 0,
     fresh: true,
     report: { state: "OFF", power: 0 },
     version: "boot:1",
   };
-  const network = { fail: false, reads: 0 };
+  const network = { fail: false, reads: 0, manual: [], accepted: [] };
+  const listeners = new Map();
   class Socket {
     static OPEN = 1;
     readyState = 1;
@@ -48,6 +51,11 @@ function page() {
   };
   vm.runInNewContext(fs.readFileSync("web/app.js", "utf8"), {
     document: { getElementById: get },
+    window: {
+      addEventListener(name, callback) {
+        listeners.set(name, callback);
+      },
+    },
     location: { protocol: "http:", host: "192.168.50.102" },
     WebSocket: Socket,
     AbortController,
@@ -61,7 +69,19 @@ function page() {
     setInterval(fn) {
       poll = fn;
     },
-    async fetch(url) {
+    async fetch(url, options) {
+      if (url === "/manual") {
+        const value = JSON.parse(options.body);
+        network.manual.push(value);
+        if (status.automatic_enabled)
+          return {
+            ok: false,
+            status: 409,
+            json: async () => ({ error: "请先关闭自动开关" }),
+          };
+        network.accepted.push(value);
+        return { ok: true, status: 200 };
+      }
       assert.equal(url, "/device-status");
       network.reads++;
       if (network.fail) throw new Error("offline");
@@ -69,7 +89,15 @@ function page() {
       return { ok: true, json: async () => data };
     },
   });
-  return { get, timers, sockets, status, network, poll: () => poll() };
+  return {
+    get,
+    timers,
+    sockets,
+    status,
+    network,
+    poll: () => poll(),
+    mode: (detail) => listeners.get("plantctl:schedule")({ detail }),
+  };
 }
 test("opens without credentials, waits for gateway data, normal UI has no refresh or update text", async () => {
   const p = page();
@@ -94,9 +122,8 @@ test("manual command waits for a new matching report; cached values never confir
   ws.receive("bridge/state");
   await settle();
   p.get("on").onclick();
-  assert.deepEqual(ws.sent, [
-    { topic: "plant-light/set", payload: { state: "ON" } },
-  ]);
+  assert.deepEqual(p.network.manual, [{ state: "ON" }]);
+  assert.equal(ws.sent.length, 0);
   assert.equal(p.get("device-visual").dataset.state, "off");
   assert.equal(p.get("off").disabled, true);
   await p.poll();
@@ -151,6 +178,36 @@ test("timeouts and reconnects report uncertainty without replaying commands", as
   [...p.timers.values()].find((t) => t.delay === 4000).fn();
   assert.equal(p.sockets.length, 2);
   assert.equal(p.sockets[1].sent.length, 0);
+});
+test("automatic mode locks manual controls immediately and cannot be reverted by an older status read", async () => {
+  const p = page();
+  await settle();
+  p.sockets[0].receive("bridge/state");
+  await settle();
+  p.mode({ enabled: false, revision: 0, locked: true });
+  assert.equal(p.get("on").disabled, true);
+  p.mode({ enabled: true, revision: 1, locked: false });
+  await p.poll(); // stale GET still says revision 0 / manual
+  assert.equal(p.get("on").disabled, true);
+  await p.get("on").onclick();
+  assert.equal(p.network.manual.length, 0);
+  p.mode({ enabled: false, revision: 2, locked: false });
+  assert.equal(p.get("on").disabled, false);
+});
+test("stale-page manual requests are rejected by the server without dispatch", async () => {
+  const p = page();
+  await settle();
+  p.sockets[0].receive("bridge/state");
+  await settle();
+  p.status.automatic_enabled = true;
+  p.status.schedule_revision = 1;
+  await p.get("on").onclick();
+  await settle();
+  assert.equal(p.network.manual.length, 1);
+  assert.equal(p.network.accepted.length, 0);
+  assert.equal(p.sockets[0].sent.length, 0);
+  assert.equal(p.get("on").disabled, true);
+  assert.match(p.get("feedback").textContent, /关闭自动/);
 });
 test("upstream configuration errors disable controls and retry", async () => {
   const p = page();

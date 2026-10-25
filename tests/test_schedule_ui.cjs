@@ -5,12 +5,18 @@ const fs = require("node:fs");
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 function page(enabled = false) {
   const nodes = new Map(),
-    requests = [];
-  let poll, dial;
+    requests = [],
+    events = [],
+    timers = new Map();
+  let poll,
+    dial,
+    timerId = 0,
+    focused;
   class ScheduleDial {
-    constructor(root, onChange) {
+    constructor(root, onChange, onCommit) {
       this.times = { on: "08:00", off: "22:00" };
       this.onChange = onChange;
+      this.onCommit = onCommit;
       dial = this;
     }
     setRange(on, off) {
@@ -24,30 +30,34 @@ function page(enabled = false) {
       this.times[edge] = value;
       this.onChange();
     }
+    finish(kind = "pointer") {
+      this.onCommit(kind);
+    }
   }
   const server = {
     enabled,
     on: "08:00",
     off: "22:00",
     revision: 0,
-    timezone: "Asia/Shanghai",
     clock_ready: true,
     gateway_online: true,
-    next: null,
   };
   const get = (id) => {
     if (!nodes.has(id))
       nodes.set(id, {
-        value: "",
-        checked: false,
         disabled: false,
+        hidden: false,
         textContent: "",
         dataset: {},
+        attrs: {},
         addEventListener(event, fn) {
           this[event] = fn;
         },
-        reportValidity() {
-          return true;
+        setAttribute(k, v) {
+          this.attrs[k] = v;
+        },
+        focus() {
+          focused = id;
         },
       });
     return nodes.get(id);
@@ -58,13 +68,24 @@ function page(enabled = false) {
     {
       ScheduleDial,
       document: { getElementById: get },
-      Date,
-      Intl,
       AbortController,
-      setTimeout() {
-        return 1;
+      window: {
+        dispatchEvent(event) {
+          events.push(event.detail);
+        },
       },
-      clearTimeout() {},
+      CustomEvent: class {
+        constructor(name, options) {
+          this.detail = options.detail;
+        }
+      },
+      setTimeout(fn, delay) {
+        timers.set(++timerId, { fn, delay });
+        return timerId;
+      },
+      clearTimeout(id) {
+        timers.delete(id);
+      },
       setInterval(fn) {
         poll = fn;
       },
@@ -87,81 +108,121 @@ function page(enabled = false) {
       },
     },
   );
-  return { get, dial, server, requests, network, poll: () => poll() };
+  return {
+    get,
+    dial,
+    server,
+    requests,
+    events,
+    network,
+    timers,
+    poll: () => poll(),
+    focused: () => focused,
+  };
 }
-test("loads persisted settings without writing; toggle saves immediately", async () => {
+test("tabs own persisted mode, panels are exclusive, unknown and saving states lock controls", async () => {
   const p = page();
+  assert.equal(p.get("tab-auto").disabled, true);
   await settle();
-  assert.equal(p.dial.times.on, "08:00");
-  assert.equal(p.get("schedule-enabled").checked, false);
-  assert.equal(p.requests.length, 1);
+  assert.equal(p.get("manual-panel").hidden, false);
+  assert.equal(p.get("schedule-editor").hidden, true);
   assert.equal(p.dial.disabled, true);
-  assert.equal(p.get("schedule-editor").dataset.disabled, "true");
-  p.dial.edit("on", "09:00");
-  assert.equal(p.dial.times.on, "08:00");
-  p.get("schedule-enabled").checked = true;
-  await p.get("schedule-enabled").change();
+  const saving = p.get("tab-auto").onclick();
+  assert.equal(p.get("tab-manual").disabled, true);
+  assert.equal(p.events.at(-1).locked, true);
+  await saving;
   assert.equal(p.server.enabled, true);
+  assert.equal(p.get("manual-panel").hidden, true);
+  assert.equal(p.get("schedule-editor").hidden, false);
   assert.equal(p.dial.disabled, false);
-  assert.equal(p.get("schedule-mode").textContent, "已开启");
-  assert.equal(p.server.revision, 1);
-  assert.deepEqual(JSON.parse(p.requests[1].body), {
-    enabled: true,
-    on: "08:00",
-    off: "22:00",
-    revision: 0,
-  });
+  assert.equal(p.get("schedule-feedback").hidden, true);
+  await p.get("tab-manual").onclick();
+  assert.equal(p.server.enabled, false);
+  assert.equal(p.dial.disabled, true);
 });
-test("equal times are rejected, drafts survive polling, conflicts reload explicitly", async () => {
+test("drag previews do not write; release saves once without a save button", async () => {
   const p = page(true);
   await settle();
-  p.dial.edit("on", "22:00");
-  p.get("schedule-enabled").checked = true;
-  await p.get("schedule-enabled").change();
-  assert.equal(p.server.enabled, true);
-  assert.match(p.get("schedule-feedback").textContent, /不能相同/);
-  p.dial.edit("on", "20:00");
+  p.dial.edit("on", "09:00");
+  p.dial.edit("on", "09:30");
+  await p.poll();
+  assert.equal(p.requests.filter((r) => r.method === "PUT").length, 0);
+  assert.equal(p.dial.times.on, "09:30");
+  p.dial.finish();
+  await settle();
+  assert.equal(p.server.on, "09:30");
+  assert.equal(p.requests.filter((r) => r.method === "PUT").length, 1);
+  assert.doesNotMatch(
+    fs.readFileSync("web/index.html", "utf8"),
+    /schedule-save|schedule-enabled|schedule-hint/,
+  );
+});
+test("keyboard changes coalesce and switching mode discards unsaved preview", async () => {
+  const p = page(true);
+  await settle();
+  p.dial.edit("on", "09:00");
+  p.dial.finish("keyboard");
+  p.dial.edit("on", "09:30");
+  p.dial.finish("keyboard");
+  const delayed = [...p.timers.values()].filter((t) => t.delay === 400);
+  assert.equal(delayed.length, 1);
+  delayed[0].fn();
+  await settle();
+  assert.equal(p.server.on, "09:30");
+  p.dial.edit("on", "10:00");
+  await p.get("tab-manual").onclick();
+  assert.equal(p.server.on, "09:30");
+  assert.equal(p.dial.times.on, "09:30");
+  const before = p.requests.length;
+  p.get("tab-manual").keydown({ key: "ArrowRight", preventDefault() {} });
+  assert.equal(p.focused(), "tab-auto");
+  assert.equal(p.requests.length, before);
+});
+test("a pending keyboard save cannot commit an in-progress pointer preview", async () => {
+  const p = page(true);
+  await settle();
+  p.dial.edit("on", "09:00");
+  p.dial.finish("keyboard");
+  p.dial.drag = {};
+  p.dial.edit("on", "10:00");
+  [...p.timers.values()].find((t) => t.delay === 400).fn();
+  await settle();
+  assert.equal(p.requests.filter((r) => r.method === "PUT").length, 0);
+  p.dial.drag = null;
+  p.dial.finish();
+  await settle();
+  assert.equal(p.server.on, "10:00");
+  assert.equal(p.requests.filter((r) => r.method === "PUT").length, 1);
+});
+test("conflicts reload authoritative times and remote manual mode locks the dial", async () => {
+  const p = page(true);
+  await settle();
+  p.dial.edit("on", "10:00");
   p.server.on = "19:00";
   p.server.revision = 1;
-  await p.poll();
-  assert.equal(p.dial.times.on, "20:00");
-  p.get("schedule-enabled").checked = true;
-  await p.get("schedule-enabled").change();
-  assert.equal(p.dial.times.on, "19:00");
-  assert.equal(p.server.enabled, true);
-  assert.match(p.get("schedule-feedback").textContent, /其他设备/);
-});
-test("turning off locks editing and saving; remote disable discards stale drafts", async () => {
-  const p = page(true);
+  p.dial.finish();
   await settle();
-  p.get("schedule-enabled").checked = false;
-  await p.get("schedule-enabled").change();
-  assert.equal(p.dial.disabled, true);
-  assert.equal(p.get("schedule-save").disabled, true);
-  assert.equal(p.get("schedule-enabled").disabled, false);
-  assert.equal(p.get("schedule-mode").textContent, "已关闭");
-  p.get("schedule-enabled").checked = true;
-  await p.get("schedule-enabled").change();
-  p.dial.edit("on", "09:00");
+  assert.equal(p.dial.times.on, "19:00");
+  assert.match(p.get("schedule-feedback").textContent, /其他设备/);
+  p.dial.edit("on", "20:00");
   p.server.enabled = false;
   p.server.revision++;
   await p.poll();
   assert.equal(p.dial.disabled, true);
-  assert.equal(p.get("schedule-enabled").checked, false);
-  assert.equal(p.dial.times.on, "08:00");
+  assert.equal(p.dial.times.on, "19:00");
+  assert.equal(p.get("manual-panel").hidden, false);
 });
-test("failed saves are not shown as enabled; connectivity loss disables editing", async () => {
+test("failed mode switches never claim success and reconnect restores server state", async () => {
   const p = page();
   await settle();
   p.network.fail = true;
-  p.get("schedule-enabled").checked = true;
-  await p.get("schedule-enabled").change();
-  assert.equal(p.get("schedule-enabled").checked, false);
-  assert.match(p.get("schedule-feedback").textContent, /未确认/);
-  await p.poll();
-  assert.equal(p.get("schedule-enabled").disabled, true);
-  assert.match(p.get("schedule-feedback").textContent, /已有规则可能仍在执行/);
+  await p.get("tab-auto").onclick();
+  assert.equal(p.get("manual-panel").hidden, false);
+  assert.equal(p.get("schedule-editor").hidden, true);
+  assert.equal(p.get("tab-auto").disabled, true);
+  assert.match(p.get("schedule-feedback").textContent, /无法确认/);
   p.network.fail = false;
   await p.poll();
-  assert.equal(p.get("schedule-enabled").disabled, false);
+  assert.equal(p.get("tab-auto").disabled, false);
+  assert.equal(p.get("schedule-feedback").hidden, true);
 });

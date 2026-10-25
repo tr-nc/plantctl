@@ -32,9 +32,10 @@ export function arcPath(on, off) {
 }
 
 export class ScheduleDial {
-  constructor(root, onChange) {
+  constructor(root, onChange, onCommit = () => {}) {
     this.root = root;
     this.onChange = onChange;
+    this.onCommit = onCommit;
     this.values = { on: 480, off: 1320 };
     this.active = "on";
     this.disabled = true;
@@ -66,7 +67,9 @@ export class ScheduleDial {
               : event.key === "End"
                 ? 1410
                 : snap(this.values[edge]) + direction * STEP;
+          const previous = this.values[edge];
           this.change(edge, value);
+          if (previous !== this.values[edge]) this.onCommit("keyboard");
         }
       });
     }
@@ -183,8 +186,12 @@ export class ScheduleDial {
       if (Math.hypot(p.x - 160, p.y - 160) >= 40)
         this.change(this.drag.edge, timeAt(p.x, p.y));
     }
+    const changed =
+      this.drag.original.on !== this.values.on ||
+      this.drag.original.off !== this.values.off;
     this.drag = null;
     this.root.releasePointerCapture(event.pointerId);
+    if (!this.disabled && changed) this.onCommit("pointer");
   }
   cancel(event) {
     if (!this.drag || event.pointerId !== this.drag.id) return;

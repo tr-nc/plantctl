@@ -59,13 +59,14 @@ class ScheduleTests(unittest.TestCase):
         restarted.tick()
         self.assertEqual(self.gateway.commands, ["ON", "OFF"])
 
-    def test_daytime_edges_and_manual_override_until_next_edge(self):
+    def test_daytime_edges_and_no_repeated_dispatch_between_edges(self):
         self.time = self.time.replace(hour=7, minute=59, second=59)
         self.save(enabled=True)
         self.scheduler.tick()
         self.time = self.time.replace(hour=8, minute=0, second=0)
         self.scheduler.tick()
-        # A manual OFF happens outside this controller. Repeated ticks must not override it.
+        # An external physical switch can still change state. Do not dispatch
+        # repeatedly within one window; the dashboard manual API is gated.
         self.time = self.time.replace(hour=12)
         self.scheduler.tick()
         self.save()  # Saving unchanged configuration is not an activation event either.
@@ -158,6 +159,23 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual(self.gateway.commands, [])
         self.assertEqual(list(self.path.parent.iterdir()), [])
 
+    def test_manual_control_requires_persisted_manual_mode(self):
+        self.scheduler.manual({"state": "ON"})
+        self.assertEqual(self.gateway.commands, ["ON"])
+        self.save(enabled=True)
+        for service in (self.scheduler, self.new_scheduler()):
+            with self.assertRaises(ConflictError):
+                service.manual({"state": "OFF"})
+        self.assertEqual(self.gateway.commands, ["ON"])
+        self.save(enabled=False)
+        self.scheduler.manual({"state": "OFF"})
+        self.assertEqual(self.gateway.commands, ["ON", "OFF"])
+        self.gateway.online = False
+        with self.assertRaises(ConnectionError):
+            self.scheduler.manual({"state": "ON"})
+        with self.assertRaises(ValueError):
+            self.scheduler.manual({"state": "TOGGLE"})
+
     def test_corrupt_file_fails_closed(self):
         self.path.write_text('{"enabled":true}')
         with self.assertRaises(ValueError):
@@ -171,7 +189,7 @@ class ScheduleTests(unittest.TestCase):
         self.addCleanup(worker.join)
         self.addCleanup(server.shutdown)
 
-        def request(method, body=None, origin=True):
+        def request(method, body=None, origin=True, path="/schedule"):
             connection = http.client.HTTPConnection(
                 "127.0.0.1", server.server_port, timeout=3
             )
@@ -179,7 +197,7 @@ class ScheduleTests(unittest.TestCase):
             if origin:
                 headers["Origin"] = "http://192.168.50.102"
             connection.request(
-                method, "/schedule", json.dumps(body) if body else None, headers
+                method, path, json.dumps(body) if body else None, headers
             )
             response = connection.getresponse()
             result = (response.status, json.loads(response.read()))
@@ -199,6 +217,17 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual(self.gateway.commands, [])
         self.scheduler.tick()
         self.assertEqual(self.gateway.commands, ["OFF"])
+        self.assertEqual(request("POST", {"state": "ON"}, path="/manual")[0], 409)
+        self.assertEqual(self.gateway.commands, ["OFF"])
+        self.assertEqual(
+            request("POST", {"state": "ON"}, origin=False, path="/manual")[0], 403
+        )
+        self.assertEqual(
+            request("PUT", {**value, "enabled": False, "revision": 1})[0], 200
+        )
+        self.assertEqual(request("POST", {"state": "ON"}, path="/manual")[0], 200)
+        self.assertEqual(self.gateway.commands, ["OFF", "ON"])
+        self.assertEqual(request("POST", {"state": "TOGGLE"}, path="/manual")[0], 400)
 
     def test_mqtt_never_retains_or_queues_commands_and_checks_bridge(self):
         with patch("controller.service.mqtt.Client") as client_class:

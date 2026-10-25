@@ -121,9 +121,7 @@ class MQTTGateway:
             retain=False,
         )
         if result.rc == mqtt.MQTT_ERR_SUCCESS:
-            LOG.info(
-                "Scheduled state submitted: %s (device execution not confirmed)", state
-            )
+            LOG.info("State submitted: %s (device execution not confirmed)", state)
             return True
         return False
 
@@ -157,7 +155,15 @@ def make_server(
 
         def do_GET(self) -> None:
             if self.path == "/device-status" and device_status is not None:
-                self.respond(200, device_status())
+                plan = scheduler.snapshot()
+                self.respond(
+                    200,
+                    {
+                        **device_status(),
+                        "automatic_enabled": plan["enabled"],
+                        "schedule_revision": plan["revision"],
+                    },
+                )
                 return
             if self.path != "/schedule":
                 self.respond(404, {"error": "Not found"})
@@ -165,7 +171,13 @@ def make_server(
             self.respond(200, scheduler.snapshot())
 
         def do_PUT(self) -> None:
-            if self.path != "/schedule":
+            self.write_action("/schedule", scheduler.save)
+
+        def do_POST(self) -> None:
+            self.write_action("/manual", scheduler.manual)
+
+        def write_action(self, path: str, action: Callable[[object], dict]) -> None:
+            if self.path != path:
                 self.respond(404, {"error": "Not found"})
                 return
             # LAN authentication is intentional; reject cross-origin browser writes.
@@ -180,11 +192,13 @@ def make_server(
                 if not 0 < size <= 1024:
                     raise ValueError("请求大小无效。")
                 value = json.loads(self.rfile.read(size))
-                result = scheduler.save(value)
+                result = action(value)
             except ConflictError as error:
                 self.respond(409, {"error": str(error)})
             except (ValueError, UnicodeError):
-                self.respond(400, {"error": "配置无效：请使用不同的 HH:MM 开关时间。"})
+                self.respond(400, {"error": "请求参数无效。"})
+            except ConnectionError as error:
+                self.respond(503, {"error": str(error)})
             except OSError:
                 LOG.exception("Failed to persist schedule")
                 self.respond(503, {"error": "保存结果未确认，请重新加载核对配置。"})

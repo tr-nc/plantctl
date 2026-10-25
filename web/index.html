@@ -106,7 +106,7 @@
             />
           </svg>
         </div>
-        <div class="controls">
+        <div class="device-readings">
           <div class="device-heading">
             <h2 id="device-name">植物补光灯</h2>
             <span id="state-badge" class="badge">待确认</span>
@@ -116,32 +116,53 @@
             <div><span>电压</span><strong id="voltage">— V</strong></div>
             <div><span>累计用电</span><strong id="energy">— kWh</strong></div>
           </div>
-          <div class="actions">
-            <button id="on" disabled>开灯</button
-            ><button id="off" class="secondary" disabled>关灯</button>
-          </div>
-          <p id="feedback" role="status" aria-live="polite" hidden></p>
         </div>
-        <form id="schedule-form" class="schedule">
-          <div class="schedule-heading">
-            <label for="schedule-enabled">自动开关</label>
-            <span id="schedule-mode" class="schedule-mode" role="status"
-              >加载中</span
+        <form id="schedule-form" class="control-panel">
+          <h2>控制</h2>
+          <div class="mode-tabs" role="tablist" aria-label="控制模式">
+            <button
+              id="tab-manual"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="manual-panel"
+              disabled
             >
-            <span class="switch">
-              <input
-                id="schedule-enabled"
-                type="checkbox"
-                role="switch"
-                disabled
-              />
-              <span aria-hidden="true"></span>
-            </span>
+              手动
+            </button>
+            <button
+              id="tab-auto"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              aria-controls="schedule-editor"
+              tabindex="-1"
+              disabled
+            >
+              自动
+            </button>
+          </div>
+          <div
+            id="manual-panel"
+            class="manual-panel"
+            role="tabpanel"
+            aria-labelledby="tab-manual"
+            hidden
+          >
+            <div class="actions">
+              <button id="on" type="button" disabled>开灯</button>
+              <button id="off" type="button" class="secondary" disabled>
+                关灯
+              </button>
+            </div>
           </div>
           <div
             id="schedule-editor"
             class="schedule-editor"
             data-disabled="true"
+            role="tabpanel"
+            aria-labelledby="tab-auto"
+            hidden
           >
             <div
               id="schedule-dial"
@@ -211,14 +232,9 @@
                 <span>关闭</span><strong>22:00</strong>
               </button>
             </div>
-            <button id="schedule-save" type="submit" disabled>保存</button>
           </div>
-          <p id="schedule-feedback" role="status" aria-live="polite">
-            正在加载…
-          </p>
-          <p class="schedule-hint">
-            启用或改时后立即按时段执行；手动开关保持到下次定时。
-          </p>
+          <p id="feedback" role="status" aria-live="polite" hidden></p>
+          <p id="schedule-feedback" role="alert" hidden></p>
         </form>
       </article>
     </main>

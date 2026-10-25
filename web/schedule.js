@@ -1,59 +1,64 @@
 import { ScheduleDial } from "./dial.mjs";
 
 const el = (id) => document.getElementById(id);
-const dial = new ScheduleDial(el("schedule-dial"), () => {
-  controls();
-  note(dirty() ? "尚未保存" : "每天 · 北京时间");
-});
 let saved = null;
 let busy = false;
 let available = false;
 let reading = false;
 let writes = 0;
-
+let debounce;
+const dial = new ScheduleDial(
+  el("schedule-dial"),
+  () => {},
+  (kind) => {
+    clearTimeout(debounce);
+    if (kind === "keyboard") debounce = setTimeout(() => saveTimes(), 400);
+    else saveTimes();
+  },
+);
 function dirty() {
   return saved && (dial.times.on !== saved.on || dial.times.off !== saved.off);
 }
+function note(text = "") {
+  el("schedule-feedback").textContent = text;
+  el("schedule-feedback").hidden = !text;
+}
 function controls() {
-  el("schedule-enabled").disabled = busy || !available;
-  const disabled = busy || !available || !saved?.enabled;
+  const locked = busy || !available || !saved;
+  for (const [id, automatic] of [
+    ["tab-manual", false],
+    ["tab-auto", true],
+  ]) {
+    const tab = el(id);
+    const selected = saved?.enabled === automatic;
+    tab.disabled = !!locked;
+    tab.setAttribute("aria-selected", String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+  }
+  el("manual-panel").hidden = !saved || saved.enabled;
+  el("schedule-editor").hidden = !saved || !saved.enabled;
+  const disabled = !!locked || !saved?.enabled;
   dial.setDisabled(disabled);
   el("schedule-editor").dataset.disabled = String(disabled);
-  el("schedule-mode").textContent = busy
-    ? "保存中"
-    : !available
-      ? "未连接"
-      : saved?.enabled
-        ? "已开启"
-        : "已关闭";
-  el("schedule-save").disabled = disabled || !dirty();
-}
-function note(text) {
-  el("schedule-feedback").textContent = text;
+  window.dispatchEvent(
+    new CustomEvent("plantctl:schedule", {
+      detail: {
+        enabled: saved?.enabled ?? null,
+        revision: saved?.revision ?? -1,
+        locked: !!locked,
+      },
+    }),
+  );
 }
 function show(data, force = false) {
   if (dial.drag && !force && data.enabled) return;
-  const preserveDraft = dirty() && !force && data.enabled;
-  if (!preserveDraft) {
+  if (!dirty() || force || !data.enabled) {
     saved = data;
-    el("schedule-enabled").checked = data.enabled;
     dial.setRange(data.on, data.off);
   }
-  if (!data.enabled) note("开启自动开关后可调整时间。");
-  else if (!data.clock_ready) note("等待系统校时，暂不执行。");
-  else if (!data.gateway_online) note("网关离线，恢复后按当前时段执行。");
-  else if (data.next) {
-    const time = new Intl.DateTimeFormat("zh-CN", {
-      timeZone: "Asia/Shanghai",
-      month: "numeric",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).format(new Date(data.next.at));
-    note(`${time} ${data.next.state === "ON" ? "开灯" : "关灯"} · 北京时间`);
-  }
-  if (preserveDraft) note("时间已修改，尚未保存。");
+  note();
+  if (data.enabled && !data.clock_ready)
+    note("系统正在校时，自动控制暂未执行。");
   controls();
 }
 async function request(method = "GET", body) {
@@ -69,7 +74,7 @@ async function request(method = "GET", body) {
     });
     const data = await response.json();
     if (!response.ok) {
-      const error = new Error(data.error || "定时服务不可用。");
+      const error = new Error(data.error || "设置服务不可用。");
       error.conflict = response.status === 409;
       throw error;
     }
@@ -90,53 +95,80 @@ async function load() {
   } catch {
     if (!busy && generation === writes) {
       available = false;
-      note("定时服务无法连接，已有规则可能仍在执行。");
+      note("控制服务无法连接，已有规则可能仍在执行。");
       controls();
     }
   } finally {
     reading = false;
   }
 }
-async function save() {
+async function save(enabled, times) {
   if (busy || !available || !saved) return;
-  if (dial.times.on === dial.times.off) {
-    el("schedule-enabled").checked = saved.enabled;
-    note("开启和关闭时间不能相同。");
-    return;
-  }
+  clearTimeout(debounce);
   busy = true;
   writes += 1;
   controls();
-  note("正在保存…");
+  note();
   try {
     const data = await request("PUT", {
-      enabled: el("schedule-enabled").checked,
-      ...dial.times,
+      enabled,
+      ...times,
       revision: saved.revision,
     });
     show(data, true);
   } catch (error) {
-    el("schedule-enabled").checked = saved.enabled;
-    if (error.conflict) {
-      try {
-        show(await request(), true);
-        note("已加载其他设备的更新，请重新编辑。");
-      } catch {
-        note("配置有冲突，请刷新页面后重试。");
-      }
-    } else {
-      note("保存未确认，请刷新核对；现有规则可能仍在执行。");
+    try {
+      show(await request(), true);
+      note(
+        error.conflict
+          ? "设置已在其他设备更新，请重新调整。"
+          : "修改未确认，已重新读取当前设置。",
+      );
+    } catch {
+      available = false;
+      note("无法确认设置，正在重连；已有规则可能仍在执行。");
     }
   } finally {
     busy = false;
     controls();
   }
 }
-el("schedule-form").addEventListener("submit", (event) => {
-  event.preventDefault();
-  if (saved?.enabled) save();
-});
-el("schedule-enabled").addEventListener("change", save);
+async function saveTimes() {
+  if (!saved?.enabled || !dirty()) return;
+  if (dial.drag) {
+    debounce = setTimeout(() => saveTimes(), 400);
+    return;
+  }
+  await save(true, dial.times);
+}
+function switchMode(enabled) {
+  if (!saved || saved.enabled === enabled) return;
+  return save(enabled, { on: saved.on, off: saved.off });
+}
+for (const [id, enabled] of [
+  ["tab-manual", false],
+  ["tab-auto", true],
+]) {
+  el(id).onclick = () => switchMode(enabled);
+  el(id).addEventListener("keydown", (event) => {
+    // Arrow keys move focus only; Enter/Space explicitly activate the mode.
+    if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
+      event.preventDefault();
+      const target =
+        event.key === "Home"
+          ? "tab-manual"
+          : event.key === "End"
+            ? "tab-auto"
+            : enabled
+              ? "tab-manual"
+              : "tab-auto";
+      el(target).focus();
+    }
+  });
+}
+el("schedule-form").addEventListener("submit", (event) =>
+  event.preventDefault(),
+);
 controls();
 load();
 setInterval(load, 15000);

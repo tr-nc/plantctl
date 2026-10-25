@@ -133,7 +133,7 @@ h1 {
   filter: grayscale(1);
   opacity: 0.45;
 }
-.controls {
+.device-readings {
   grid-column: 1;
   grid-row: 2;
   padding: 30px 38px 34px;
@@ -234,26 +234,41 @@ h2 {
   color: #dccba6;
   line-height: 1.7;
 }
-.schedule {
+.control-panel {
   grid-column: 2;
   grid-row: 1 / span 2;
   border-left: 1px solid #343c2e;
   padding: 32px 38px;
 }
-.schedule-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
+.mode-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  padding: 5px;
+  margin-top: 24px;
+  border: 1px solid #394431;
+  border-radius: 13px;
+  background: #141b12;
 }
-.schedule-heading > label {
-  font-size: 19px;
-  margin-right: auto;
+.mode-tabs button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 9px;
+  color: #b1bda6;
+  background: transparent;
 }
-.schedule-mode {
-  color: var(--muted);
-  font-size: 12px;
-  margin-right: 12px;
+.mode-tabs button[aria-selected="true"] {
+  background: #35452b;
+  color: #d2efb7;
+}
+.manual-panel .actions {
+  margin-top: 36px;
+}
+.manual-panel .actions button {
+  min-height: 88px;
+}
+[hidden] {
+  display: none !important;
 }
 .schedule-editor {
   transition:
@@ -272,57 +287,6 @@ h2 {
   .schedule-editor {
     transition: none;
   }
-}
-.switch {
-  position: relative;
-  display: block;
-  width: 48px;
-  height: 28px;
-}
-.switch input {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
-  z-index: 1;
-}
-.switch span {
-  display: block;
-  height: 100%;
-  background: #46513d;
-  border-radius: 20px;
-  transition: background 0.2s;
-}
-.switch span::after {
-  content: "";
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  width: 20px;
-  height: 20px;
-  background: #d5ddcc;
-  border-radius: 50%;
-  transition: transform 0.2s;
-}
-.switch input:checked + span {
-  background: var(--accent);
-}
-.switch input:checked + span::after {
-  transform: translateX(20px);
-  background: #26351b;
-}
-.switch input:focus-visible + span {
-  outline: 2px solid var(--accent);
-  outline-offset: 4px;
-}
-.switch input:disabled {
-  cursor: not-allowed;
-}
-.switch input:disabled + span {
-  opacity: 0.4;
 }
 .dial {
   position: relative;
@@ -437,37 +401,17 @@ h2 {
   font-weight: 450;
   font-variant-numeric: tabular-nums;
 }
-#schedule-save {
-  width: 100%;
-  min-height: 44px;
-  margin-top: 16px;
-  padding: 12px;
-  background: #293123;
-  color: #e3e9db;
-  border: 1px solid #46523b;
-  border-radius: 10px;
-}
-#schedule-save:not(:disabled):hover {
-  background: #38452f;
-}
-#schedule-feedback,
-.schedule-hint {
+#schedule-feedback {
   font-size: 12px;
   line-height: 1.7;
-  color: var(--muted);
+  color: #dccba6;
   margin: 14px 0 0;
-}
-.schedule-hint {
-  font-size: 11px;
-  margin-top: 6px;
 }
 @media (prefers-reduced-motion: reduce) {
   .illustration,
   .illustration svg,
   .light-beam,
-  .light-strip,
-  .switch span,
-  .switch span::after {
+  .light-strip {
     transition: none;
   }
 }
@@ -497,7 +441,7 @@ h2 {
   .illustration svg {
     width: 245px;
   }
-  .controls {
+  .device-readings {
     padding: 26px 24px;
   }
   h2 {
@@ -506,7 +450,7 @@ h2 {
   .reading strong {
     font-size: 54px;
   }
-  .schedule {
+  .control-panel {
     grid-column: 1;
     grid-row: 3;
     border-left: 0;

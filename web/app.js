@@ -7,6 +7,22 @@ let reading = false;
 let operationMessage = "";
 let connectionError = "";
 let statusError = "";
+const mode = { enabled: null, revision: -1, locked: false };
+function updateMode(value) {
+  if (
+    typeof value.enabled === "boolean" &&
+    Number.isInteger(value.revision) &&
+    value.revision >= mode.revision
+  ) {
+    mode.enabled = value.enabled;
+    mode.revision = value.revision;
+  }
+  if (typeof value.locked === "boolean") mode.locked = value.locked;
+}
+window.addEventListener("plantctl:schedule", ({ detail }) => {
+  updateMode(detail);
+  render();
+});
 
 function render() {
   const connected = authenticated && socket?.readyState === WebSocket.OPEN;
@@ -25,7 +41,11 @@ function render() {
           ? "设备未响应"
           : "● 已连接";
   $("connection").classList.toggle("online", !!fresh);
-  for (const id of ["on", "off"]) $(id).disabled = !ready || !!pending;
+  for (const id of ["on", "off"]) {
+    $(id).disabled =
+      !ready || !!pending || mode.enabled !== false || mode.locked;
+    $(id).title = mode.enabled ? "请先关闭自动开关" : "";
+  }
   $("state-badge").textContent =
     report.state === "ON"
       ? "已开启"
@@ -73,6 +93,10 @@ async function loadHealth() {
       throw new Error("Invalid state");
     const changed = value.version !== health?.version;
     health = value;
+    updateMode({
+      enabled: value.automatic_enabled,
+      revision: value.schedule_revision,
+    });
     statusError = "";
     if (
       pending &&
@@ -133,16 +157,18 @@ function connect() {
   };
   ws.onerror = () => {};
 }
-function send(state) {
+async function send(state) {
   if (
     !authenticated ||
     !health?.gateway_online ||
     socket?.readyState !== WebSocket.OPEN ||
+    mode.enabled !== false ||
+    mode.locked ||
     pending
   )
     return;
-  pending = { state, version: health.version };
-  socket.send(JSON.stringify({ topic: "plant-light/set", payload: { state } }));
+  const command = { state, version: health.version };
+  pending = command;
   operationMessage = "等待设备确认…";
   deadline = setTimeout(() => {
     clearPending();
@@ -150,6 +176,32 @@ function send(state) {
     render();
   }, 15000);
   render();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch("/manual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ state }),
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      const result = await response.json();
+      if (pending === command) {
+        clearPending();
+        operationMessage = result.error || "指令未被接受。";
+      }
+      loadHealth();
+    }
+  } catch {
+    if (pending === command) {
+      clearPending();
+      operationMessage = "操作结果未确认，后台会继续查询。";
+    }
+  } finally {
+    clearTimeout(timeout);
+    render();
+  }
 }
 $("on").onclick = () => send("ON");
 $("off").onclick = () => send("OFF");

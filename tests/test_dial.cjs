@@ -55,7 +55,12 @@ async function widget() {
   root.releasePointerCapture = () => {};
   global.document = { createElementNS: () => node() };
   let changes = 0;
-  const dial = new ScheduleDial(root, () => changes++);
+  const commits = [];
+  const dial = new ScheduleDial(
+    root,
+    () => changes++,
+    (kind) => commits.push(kind),
+  );
   delete global.document;
   dial.setDisabled(false);
   const event = (time, target = nodes.on, id = 1) => ({
@@ -67,7 +72,7 @@ async function widget() {
     target,
     preventDefault() {},
   });
-  return { dial, nodes, event, changes: () => changes };
+  return { dial, nodes, event, commits, changes: () => changes };
 }
 test("24-hour cardinal positions and every half-hour round-trip", async () => {
   const { point, timeAt, snap, toTime, toMinutes } = await modulePromise;
@@ -106,15 +111,18 @@ test("endpoints keep meaning across midnight, never coincide; legacy minutes pre
   assert.equal(dial.times.on, "08:30");
 });
 test("drag previews, pointer cancellation rolls back, track taps and keyboard need no typing", async () => {
-  const { dial, event, nodes } = await widget();
+  const { dial, event, nodes, commits } = await widget();
   dial.start(event(480));
   dial.move(event(600));
   assert.equal(dial.times.on, "10:00");
+  assert.equal(commits.length, 0);
   dial.cancel(event(600));
+  assert.equal(commits.length, 0);
   assert.equal(dial.times.on, "08:00");
   dial.start(event(480));
   dial.move(event(630));
   dial.end(event(630));
+  assert.deepEqual(commits, ["pointer"]);
   assert.equal(dial.times.on, "10:30");
   dial.select("off");
   const track = { closest: () => null };

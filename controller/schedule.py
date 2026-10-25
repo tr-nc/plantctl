@@ -147,6 +147,22 @@ class Scheduler:
             self.last_action = None
             return self.snapshot()
 
+    def manual(self, value: object) -> dict:
+        if (
+            not isinstance(value, dict)
+            or set(value) != {"state"}
+            or value["state"] not in ("ON", "OFF")
+        ):
+            raise ValueError("手动状态必须为 ON 或 OFF。")
+        with self.lock:
+            # The same lock owns mode changes and dispatch, so a stale browser
+            # cannot race an enabled schedule with an unguarded manual command.
+            if self.plan.enabled:
+                raise ConflictError("请先关闭自动开关，再手动控制。")
+            if not self.gateway.online or not self.gateway.set_state(value["state"]):
+                raise ConnectionError("网关暂不可用，指令未确认提交。")
+            return {"result": "sent", "state": value["state"]}
+
     def tick(self) -> None:
         with self.lock:
             if not self.plan.enabled or not self.clock_ready():
@@ -161,5 +177,5 @@ class Scheduler:
                     "state": edge[1],
                     "result": "sent",
                 }
-            # After broker submission, do not replay: manual control lasts until
-            # the next edge. Offline edges collapse to the current desired state.
+            # After broker submission, do not replay. Offline edges collapse
+            # to the current desired state; dashboard manual control is gated.
