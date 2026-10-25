@@ -1,5 +1,12 @@
 # AGENTS.md
 
+## Local dashboard
+
+- Main dashboard: `http://192.168.50.102/` over Wi-Fi, or `http://192.168.50.101/` over Ethernet. Source: `web/`; deployment: `scripts/install-web.sh`; service: `plantctl-web`.
+- Uses the existing Zigbee2MQTT web password; never record credentials in Git. Original advanced UI remains on port 8080.
+- Read `docs/web-dashboard.md` for architecture, security boundaries, validation and current scope. Calendar and scheduled automation are not implemented.
+- Test with `node --test tests/test_web.cjs`. Do not toggle real loads merely to test the UI without confirming that it is safe.
+
 ## Orange Pi network access
 
 - Device: `orangepizero3`; SSH user: `terence`.
