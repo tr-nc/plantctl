@@ -1,0 +1,121 @@
+const { test } = require("node:test");
+const assert = require("node:assert/strict");
+const vm = require("node:vm");
+const fs = require("node:fs");
+const settle = () => new Promise((resolve) => setImmediate(resolve));
+function page() {
+  const nodes = new Map(),
+    requests = [];
+  let poll;
+  const server = {
+    enabled: false,
+    on: "08:00",
+    off: "22:00",
+    revision: 0,
+    timezone: "Asia/Shanghai",
+    clock_ready: true,
+    gateway_online: true,
+    next: null,
+  };
+  const get = (id) => {
+    if (!nodes.has(id))
+      nodes.set(id, {
+        value: "",
+        checked: false,
+        disabled: false,
+        textContent: "",
+        addEventListener(event, fn) {
+          this[event] = fn;
+        },
+        reportValidity() {
+          return true;
+        },
+      });
+    return nodes.get(id);
+  };
+  const network = { fail: false };
+  vm.runInNewContext(fs.readFileSync("web/schedule.js", "utf8"), {
+    document: { getElementById: get },
+    Date,
+    Intl,
+    AbortController,
+    setTimeout() {
+      return 1;
+    },
+    clearTimeout() {},
+    setInterval(fn) {
+      poll = fn;
+    },
+    async fetch(url, options) {
+      requests.push({ url, ...options });
+      if (network.fail) throw new Error("offline");
+      let status = 200,
+        data = { ...server };
+      if (options.method === "PUT") {
+        const plan = JSON.parse(options.body);
+        if (plan.revision !== server.revision) {
+          status = 409;
+          data = { error: "conflict" };
+        } else {
+          Object.assign(server, plan, { revision: server.revision + 1 });
+          data = { ...server };
+        }
+      }
+      return { ok: status === 200, status, json: async () => data };
+    },
+  });
+  return { get, server, requests, network, poll: () => poll() };
+}
+test("loads persisted settings without writing; toggle saves immediately", async () => {
+  const p = page();
+  await settle();
+  assert.equal(p.get("schedule-on").value, "08:00");
+  assert.equal(p.get("schedule-enabled").checked, false);
+  assert.equal(p.requests.length, 1);
+  p.get("schedule-enabled").checked = true;
+  await p.get("schedule-enabled").change();
+  assert.equal(p.server.enabled, true);
+  assert.equal(p.server.revision, 1);
+  assert.deepEqual(JSON.parse(p.requests[1].body), {
+    enabled: true,
+    on: "08:00",
+    off: "22:00",
+    revision: 0,
+  });
+});
+test("equal times are rejected, drafts survive polling, conflicts reload explicitly", async () => {
+  const p = page();
+  await settle();
+  p.get("schedule-on").value = "22:00";
+  p.get("schedule-on").input();
+  p.get("schedule-enabled").checked = true;
+  await p.get("schedule-enabled").change();
+  assert.equal(p.server.enabled, false);
+  assert.match(p.get("schedule-feedback").textContent, /不能相同/);
+  p.get("schedule-on").value = "20:00";
+  p.get("schedule-on").input();
+  p.server.on = "19:00";
+  p.server.revision = 1;
+  await p.poll();
+  assert.equal(p.get("schedule-on").value, "20:00");
+  p.get("schedule-enabled").checked = true;
+  await p.get("schedule-enabled").change();
+  assert.equal(p.get("schedule-on").value, "19:00");
+  assert.equal(p.server.enabled, false);
+  assert.match(p.get("schedule-feedback").textContent, /其他设备/);
+});
+test("failed saves are not shown as enabled; connectivity loss disables editing", async () => {
+  const p = page();
+  await settle();
+  p.network.fail = true;
+  p.get("schedule-enabled").checked = true;
+  await p.get("schedule-enabled").change();
+  assert.equal(p.get("schedule-enabled").checked, false);
+  assert.match(p.get("schedule-feedback").textContent, /未确认/);
+  await p.poll();
+  assert.equal(p.get("schedule-enabled").disabled, true);
+  assert.match(p.get("schedule-feedback").textContent, /已有规则可能仍在执行/);
+  p.network.fail = false;
+  await p.poll();
+  assert.equal(p.get("schedule-enabled").disabled, false);
+});

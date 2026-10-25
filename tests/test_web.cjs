@@ -32,6 +32,7 @@ function page() {
       elements.set(id, {
         textContent: "",
         disabled: false,
+        dataset: {},
         classList: { toggle() {} },
       });
     return elements.get(id);
@@ -106,6 +107,23 @@ test("query, timeout, offline and reconnection do not replay commands", () => {
   assert.equal(p.sockets.length, 2);
   assert.equal(p.sockets[1].url, "ws://192.168.50.102/api");
   assert.equal(p.sockets[1].sent.length, 0);
+});
+test("illustration follows reported state, never optimistic clicks or stale disconnected state", () => {
+  const p = page(),
+    ws = p.sockets[0];
+  assert.equal(p.get("device-visual").dataset.state, "unknown");
+  ws.receive("plant-light", { state: "ON" });
+  assert.equal(p.get("device-visual").dataset.state, "unknown");
+  ws.receive("bridge/state", { state: "online" });
+  assert.equal(p.get("device-visual").dataset.state, "on");
+  p.get("off").onclick();
+  assert.equal(p.get("device-visual").dataset.state, "on");
+  ws.receive("plant-light", { state: "OFF" });
+  assert.equal(p.get("device-visual").dataset.state, "off");
+  ws.receive("bridge/state", { state: "offline" });
+  assert.equal(p.get("device-visual").dataset.state, "unknown");
+  ws.close();
+  assert.equal(p.get("device-visual").dataset.state, "unknown");
 });
 test("upstream credential failure disables controls and retries without asking for a password", () => {
   const p = page(),

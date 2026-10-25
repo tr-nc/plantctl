@@ -17,8 +17,20 @@ HTTP 不加密，仅适用于可信局域网，禁止公网端口映射。页面
 - 深色、精简布局，只保留设备、读数、开关及必要连接反馈；适配手机。
 - 初始数据显示最近上报值，不是持续在线保证。刷新按钮请求新的设备上报，成功后显示更新时间。
 - 发出开关请求不立即改写显示状态；收到匹配状态报告才确认。超时、断线显示结果未确认，不自动重发控制指令。
-- 断开网页不会关闭插座；网页没有后台调度逻辑。
-- 不包含定时、节假日、历史图表、多设备管理或安全浇水逻辑。
+- 左侧图示按设备最近上报状态更新：ON 亮灯并显示光束，OFF 灭灯变暗；网关断开、无状态时使用中性灰色图示。点击按钮不会乐观切换图示。
+- 提供每日自动开关，后台独立运行；关闭网页或停止网页服务不停止定时任务。
+- 不包含节假日、历史图表、多设备管理或安全浇水逻辑。
+
+## 每日自动开关
+
+- 初次安装默认关闭，预填开启 `08:00`、关闭 `22:00`。修改时间后点保存；切换“自动开关”会立即保存当前时间和开关状态。
+- 固定使用 **Asia/Shanghai（北京时间）**，不依赖手机时区或主机 UTC 显示。每日重复，支持 `20:00 → 06:00` 之类的跨午夜时段，开关时间不能相同。
+- 开启时间包含在亮灯时段内，关闭时间起熄灯。启用、修改规则或调度服务重启后，按当前时段执行一次；停止自动模式不额外开关灯。
+- 手动操作维持到下一次定时边界。服务不会每秒强制覆盖手动操作。重新启用、改规则、重启调度服务会重新按规则对齐。
+- 断网期间不堆积开关命令；网关恢复后只补当前时段，不重播已错过的多个动作。同一时段内正常重连不覆盖手动状态。
+- 等待本次启动的系统校时成功后才执行（systemd-timesyncd 标记），避免掉电后错误时钟触发定时。校时尚未完成会显示提示。
+- 每秒检查时间边界，不承诺硬实时。MQTT 指令不保留、不持久排队；成功提交不等于物理设备已执行。插座离线或无线丢包仍可能导致动作未执行，不自动重发已提交指令；以设备实际回报为准。这不是安全联锁或浇水保护器。
+- 配置先原子写入并 fsync，再激活；版本号拒绝其他浏览器的过期覆盖。关闭自动模式后，不会再派发新的定时指令；已经提交给网关的指令无法撤回。
 
 ## 架构与部署
 
@@ -34,29 +46,44 @@ Host 白名单限 `.101`、`.102`、回环地址、localhost 和 orangepizero3.l
 不开放 MQTT，不修改原网关或原防火墙。关闭访问日志和 API 错误日志以避免记录查询参数中的 Token。
 静态资源使用 CSP、禁止嵌入、无缓存等响应头。服务使用 DynamicUser、只读系统及受限绑定端口能力。
 
+`controller/` 是 Python 后台，由独立 `plantctl-scheduler.service` 管理。通过 Paho MQTT 2.x 连接本地 Broker，
+API 只监听 `127.0.0.1:8091`，由 nginx 代理 `/schedule`。`GET` 查询，`PUT` 保存完整
+`{enabled, on, off, revision}`；写请求必须同源，非 JSON、非法时间返回 400/415，版本冲突返回 409。
+调度与配置修改在同一锁内串行化，后台主线程负责派发；异常退出由 systemd 重启，不会留下仅 API 存活的假正常服务。
+配置文件异常时拒绝启动，不能静默恢复默认并覆盖用户设置。
+
 部署路径：
 
 - `/opt/plantctl-web/`：静态页面。
 - `/etc/plantctl/web-nginx.conf`：专用 nginx 配置。
 - `/etc/systemd/system/plantctl-web.service`：开机自启，异常退出重试。
 - `/run/plantctl-web/`：运行时 PID 和临时文件。
+- `/opt/plantctl-controller/controller/`：调度代码，不在网页根目录。
+- `/var/lib/plantctl-scheduler/schedule.json`：持久化设置，由 systemd StateDirectory 管理（文件 0600）。
+- `/etc/systemd/system/plantctl-scheduler.service`：独立开机自启，不依赖浏览器。
 - 包自带 `nginx.service` 被 mask，防止默认站点意外开放；只运行专用 `plantctl-web.service`。
 
-将 `web/` 和 `scripts/install-web.sh` 保持目录关系复制到设备，然后在设备运行：
+将 `web/`、`controller/` 和 `scripts/install-web.sh` 保持目录关系复制到设备，然后在设备运行：
 
 ```sh
 sudo bash scripts/install-web.sh
-systemctl status plantctl-web
+systemctl status plantctl-web plantctl-scheduler
 ```
 
 安装器面向现有 Debian Zigbee 主机；拒绝活动的系统 nginx 和无归属的目标目录。需要 80 端口未被其他服务占用。
-更新页面后可重新运行安装器。停止此网页用 `sudo systemctl disable --now plantctl-web`；不会停止 Zigbee2MQTT 或改变插座状态。
+更新后可重新运行安装器，已有时间设置会保留。安装器会重启调度服务，若已有启用的规则，会立即对齐当前时段。
+停止此网页用 `sudo systemctl disable --now plantctl-web`，不会停止定时或 Zigbee2MQTT。
+停止定时应在页面关闭自动模式，或执行 `sudo systemctl disable --now plantctl-scheduler`；两者都不会自动关闭当前负载。
 
 ## 验证
 
 ```sh
-node --test tests/test_web.cjs
+node --test tests/test_web.cjs tests/test_schedule_ui.cjs
+uv run --with 'paho-mqtt>=2,<3' python -m unittest discover -s tests -p test_schedule.py -v
+uvx ruff check controller tests/test_schedule.py
+uvx --with 'paho-mqtt>=2,<3' pyright controller tests/test_schedule.py
 node --check web/app.js
+node --check web/schedule.js
 bash -n scripts/install-web.sh
 ```
 
@@ -65,4 +92,7 @@ bash -n scripts/install-web.sh
 自动化测试覆盖无凭证自动连接、等待网关数据、等待设备确认、超时、离线、重连不重发、上游认证异常后的重试。
 深色版 axe 检查没有确定违规，刷新符号的对比度需人工检查；截图中该控件可见。
 实机未发送开关指令以避免改变实际负载；ON/OFF 请求和状态确认流程在模拟 WebSocket 测试中验证。
-新网页服务尚未经过整机重启验证，不能将此前网络重启测试视为此服务的重启测试。
+调度新增验证：真实浏览器保持自动关闭，保存测试时间，重启调度服务并重新加载验证持久化，再恢复默认时间；全程没有派发定时开关命令。
+单元测试覆盖日间/跨午夜、精确边界、手动覆盖、停用、规则修改、重启对齐、校时等待、断网补当前状态、无效输入、落盘失败和并发版本冲突；通过真实 HTTP 接口验证保存和拒绝逻辑。
+图示已验证真实设备 OFF 时无光束，ON/OFF/未知及断线状态传播在模拟 WebSocket 测试中验证。
+新网页和调度服务尚未经过整机重启或真实灯具跨定时边界验证，不能将此前网络重启测试视为这些服务的重启测试。

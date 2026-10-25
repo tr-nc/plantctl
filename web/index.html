@@ -7,6 +7,7 @@
     <title>Plantctl</title>
     <link rel="stylesheet" href="/style.css" />
     <script type="module" src="/app.js"></script>
+    <script type="module" src="/schedule.js"></script>
   </head>
   <body>
     <header>
@@ -18,7 +19,12 @@
     <main>
       <h1>我的设备<span class="count">01</span></h1>
       <article class="device" aria-labelledby="device-name">
-        <div class="illustration" aria-hidden="true">
+        <div
+          id="device-visual"
+          class="illustration"
+          data-state="unknown"
+          aria-hidden="true"
+        >
           <svg viewBox="0 0 400 400" fill="none">
             <defs>
               <linearGradient
@@ -44,10 +50,22 @@
                 <stop offset="1" stop-color="#30382e" />
               </linearGradient>
             </defs>
-            <path d="M150 83L66 342H334L250 83Z" fill="url(#beam)" />
+            <path
+              class="light-beam"
+              d="M150 83L66 342H334L250 83Z"
+              fill="url(#beam)"
+            />
             <path d="M200 0V59" stroke="#606958" stroke-width="2" />
             <path d="M163 61H237L255 82H145Z" fill="#69785a" />
-            <rect x="145" y="81" width="110" height="4" rx="2" fill="#d0e9ab" />
+            <rect
+              class="light-strip"
+              x="145"
+              y="81"
+              width="110"
+              height="4"
+              rx="2"
+              fill="#d0e9ab"
+            />
             <ellipse
               cx="200"
               cy="343"
@@ -114,6 +132,45 @@
               ↻
             </button>
           </div>
+          <form id="schedule-form" class="schedule">
+            <div class="schedule-heading">
+              <label for="schedule-enabled">自动开关</label>
+              <span class="switch">
+                <input
+                  id="schedule-enabled"
+                  type="checkbox"
+                  role="switch"
+                  disabled
+                />
+                <span aria-hidden="true"></span>
+              </span>
+            </div>
+            <div class="schedule-times">
+              <label for="schedule-on"
+                >开启时间<input
+                  id="schedule-on"
+                  type="time"
+                  value="08:00"
+                  required
+                  disabled
+              /></label>
+              <label for="schedule-off"
+                >关闭时间<input
+                  id="schedule-off"
+                  type="time"
+                  value="22:00"
+                  required
+                  disabled
+              /></label>
+              <button id="schedule-save" type="submit" disabled>保存</button>
+            </div>
+            <p id="schedule-feedback" role="status" aria-live="polite">
+              正在加载…
+            </p>
+            <p class="schedule-hint">
+              启用或改时后立即按时段执行；手动开关保持到下次定时。
+            </p>
+          </form>
         </div>
       </article>
     </main>

@@ -13,6 +13,12 @@ function feedback(text) {
 function render() {
   const connected = authenticated && socket?.readyState === WebSocket.OPEN;
   const ready = connected && bridgeOnline;
+  $("device-visual").dataset.state =
+    ready && report.state === "ON"
+      ? "on"
+      : ready && report.state === "OFF"
+        ? "off"
+        : "unknown";
   $("connection").textContent = ready
     ? "● 已连接"
     : connected
